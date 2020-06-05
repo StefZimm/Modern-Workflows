@@ -1,0 +1,16 @@
+*.dta
+*.sav
+*.sas7bdat
+*.por
+*.xpt
+*.tgz
+.profile*
+*.tmp
+SIR*
+SIR*
+*.dll
+*.zip
+assignment_1/input/*
+assignment_1/temp/*
+pkzip.cfg
+Thumbs.db
