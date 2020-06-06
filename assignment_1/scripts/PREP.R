@@ -18,7 +18,8 @@ loadpackage <- function(x){
 loadpackage( c("readr", "knitr", "dplyr"))
 
 # set output directory
-outdir <- "C:/clone/Modern Workflows/assignment_1/output/"
+rawdir <- "C:/clone/Modern Workflows/assignment_1/input/raw/"
+outdir <- "C:/clone/Modern Workflows/assignment_1/output/data/"
 
 # use url to current dataset
 url_data1 <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv"
@@ -27,6 +28,10 @@ url_data2 <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/c
 # load datasets
 data1 <- read_csv(url_data1)
 data2 <- read_csv(url_data2)
+
+# save raw-data with time stamp
+write.csv(data1, paste0(rawdir, paste0(format(Sys.time(), "%Y_%m_%d_%H%M_")), "covid19_table.csv"), row.names=FALSE)
+write.csv(data2, paste0(rawdir, paste0(format(Sys.time(), "%Y_%m_%d_%H%M_")), "covid19_global.csv"), row.names=FALSE)
 
 # harmonise ID-Variables in both datasets
 names(data1)[names(data1) == "Long_"] <- "Long"
@@ -61,5 +66,7 @@ data_long <-
   )    
 
 # save data as csv
-write.csv(data_wide, paste0(outdir, "data_wide.csv"), row.names=FALSE)
-write.csv(data_long, paste0(outdir, "data_long.csv"), row.names=FALSE)       
+write.csv(data_wide, paste0(outdir, paste0(format(Sys.time(), "%Y_%m_%d_%H%M_")), "data_wide.csv"), row.names=FALSE)
+write.csv(data_wide, "data_wide.csv", row.names=FALSE)
+write.csv(data_long, paste0(outdir, paste0(format(Sys.time(), "%Y_%m_%d_%H%M_")), "data_long.csv"), row.names=FALSE)
+write.csv(data_long, "data_long.csv", row.names=FALSE)
