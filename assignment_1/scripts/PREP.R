@@ -15,7 +15,7 @@ loadpackage <- function(x){
 }
 
 # load packages
-loadpackage( c("readr", "knitr", "dplyr"))
+loadpackage( c("readr", "knitr", "dplyr", "tidyr"))
 
 # set output directory
 rawdir <- "C:/clone/Modern Workflows/assignment_1/input/raw/"
@@ -48,6 +48,10 @@ data_wide <- left_join(data1, data2, c("Country_Region"))
 
 # Check Countries without infos
 data_wide$Country_Region[is.na(data_wide$`1/22/20`)]
+data_wide$Country_Region[is.na(data_wide$Population)]
+# drop countries without info
+data_wide <- data_wide %>% drop_na(`1/22/20`)
+data_wide <- data_wide %>% drop_na(Population)
 
 # keep only necessary variables
 data_wide <-subset(data_wide, select = c("Country_Region", "Population",
@@ -67,6 +71,6 @@ data_long <-
 
 # save data as csv
 write.csv(data_wide, paste0(outdir, paste0(format(Sys.time(), "%Y_%m_%d_%H%M_")), "data_wide.csv"), row.names=FALSE)
-write.csv(data_wide, "data_wide.csv", row.names=FALSE)
+write.csv(data_wide, paste0(outdir, "data_wide.csv"), row.names=FALSE)
 write.csv(data_long, paste0(outdir, paste0(format(Sys.time(), "%Y_%m_%d_%H%M_")), "data_long.csv"), row.names=FALSE)
-write.csv(data_long, "data_long.csv", row.names=FALSE)
+write.csv(data_long, paste0(outdir, "data_long.csv"), row.names=FALSE)
