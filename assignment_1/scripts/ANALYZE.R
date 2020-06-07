@@ -22,6 +22,8 @@ graphdir <- "C:/clone/Modern Workflows/assignment_1/output/png/"
 data_long <- read_csv(paste0(datadir, "data_long.csv"))
 data_wide <- read_csv(paste0(datadir, "data_wide.csv"))
 
+#####################################################################
+# Prepare dataset
 # sum total count per day
 day_data <- data_long %>%
   group_by(day) %>%
@@ -36,6 +38,14 @@ day_data$logcount=log(day_data$freq)
 days <- names(data_wide)[3:length(data_wide)]
 weeks <- days[seq(1, length(days), 7)]
 
+country_data <- data_long
+# calculate log number of cases
+country_data$logcount=log(country_data$count)
+country_data[country_data == -Inf] <- 0
+# calculate rate of infection per 100,000 cases
+country_data$rate=(country_data$count/country_data$Population)*100000
+
+#####################################################################
 # Overall change in time of log number of cases
 ggplot(data=day_data, aes(x=reorder(day, logcount), y=logcount, group=1)) +
   geom_line()+
@@ -50,9 +60,9 @@ ggplot(data=day_data, aes(x=reorder(day, logcount), y=logcount, group=1)) +
 
 ggsave(paste0(graphdir, "total_global.png"))
 
-country_data <- data_long
-country_data$logcount=log(country_data$count)
-country_data[country_data == -Inf] <- 0
+#####################################################################
+
+# change in time of log number of cases by country
 
 country_filtered <- country_data %>%
   group_by(Country_Region) %>% 
@@ -75,7 +85,6 @@ country_filtered5 <- country_data %>%
   filter(Country_Region == "Italy") %>%
   ungroup()
 
-# change in time of log number of cases by country
 ggplot(data=country_data, aes(x=reorder(day, logcount), y=logcount, group=Country_Region)) +
   geom_line()+
   geom_point()+
@@ -139,3 +148,69 @@ ggplot(data=country_data, aes(x=reorder(day, logcount), y=logcount, group=Countr
   )
 
 ggsave(paste0(graphdir, "total_country.png"), width = 11, height = 5)
+##########################################################################
+# change in time by country of rate of infection per 100,000 cases
+
+ggplot(data=country_data, aes(x=reorder(day, rate), y=rate, group=Country_Region)) +
+  geom_line()+
+  geom_point()+
+  scale_x_discrete(limit = weeks)+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.title=element_blank(),
+        axis.ticks = element_blank(),
+        strip.text = element_blank())+
+  labs(title =  "Change in time by country of rate of Corona infection per 100,000 cases",
+       caption = "CSSEGISandData/COVID-19")+
+  # colourise only the filtered data
+  geom_line(aes(days, as.numeric(rate), colour = Country_Region), data = country_filtered, size=2)+
+  theme(
+    # Change legend 
+    legend.position = c(0.25, 0.925),
+    legend.direction = "horizontal",
+    legend.background = element_rect(fill = "black", color = NA),
+    legend.key = element_rect(color = "gray", fill = "black"),
+    legend.title = element_text(color = "white"),
+    legend.text = element_text(color = "white")
+  )+
+  geom_line(aes(days, as.numeric(rate), colour = Country_Region), data = country_filtered2, size=2)+
+  theme(
+    # Change legend 
+    legend.position = c(0.25, 0.925),
+    legend.direction = "horizontal",
+    legend.background = element_rect(fill = "black", color = NA),
+    legend.key = element_rect(color = "gray", fill = "black"),
+    legend.title = element_text(color = "white"),
+    legend.text = element_text(color = "white")
+  )+
+  geom_line(aes(days, as.numeric(rate), colour = Country_Region), data = country_filtered3, size=2)+
+  theme(
+    # Change legend 
+    legend.position = c(0.25, 0.925),
+    legend.direction = "horizontal",
+    legend.background = element_rect(fill = "black", color = NA),
+    legend.key = element_rect(color = "gray", fill = "black"),
+    legend.title = element_text(color = "white"),
+    legend.text = element_text(color = "white")
+  )+
+  geom_line(aes(days, as.numeric(rate), colour = Country_Region), data = country_filtered4, size=2)+
+  theme(
+    # Change legend 
+    legend.position = c(0.25, 0.925),
+    legend.direction = "horizontal",
+    legend.background = element_rect(fill = "black", color = NA),
+    legend.key = element_rect(color = "gray", fill = "black"),
+    legend.title = element_text(color = "white"),
+    legend.text = element_text(color = "white")
+  )+
+  geom_line(aes(days, as.numeric(rate), colour = Country_Region), data = country_filtered5, size=2)+
+  theme(
+    # Change legend 
+    legend.position = c(0.25, 0.925),
+    legend.direction = "horizontal",
+    legend.background = element_rect(fill = "black", color = NA),
+    legend.key = element_rect(color = "gray", fill = "black"),
+    legend.title = element_text(color = "white"),
+    legend.text = element_text(color = "white")
+  )
+
+ggsave(paste0(graphdir, "total_country_rate.png"), width = 11, height = 5)
