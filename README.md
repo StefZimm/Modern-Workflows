@@ -32,15 +32,29 @@ to document possible changes/updates and to retrieve old versions of the data bu
 
 1. Create the folder environment explained in "Organization of the project" 
 or clone the git repo using git with the command:
-- git clone https://github.com/StefZimm/Modern-Workflows.git
+    - git clone https://github.com/StefZimm/Modern-Workflows.git
 2. Go to "assignment_1/scripts subfolder".
 3. Open the PREP.R file and set your paths:
-- rawdir <- "C:/clone/Modern Workflows/assignment_1/input/raw/"
-- outdir <- "C:/clone/Modern Workflows/assignment_1/output/data/"
+    - rawdir <- "C:/clone/Modern Workflows/assignment_1/input/raw/"
+    - outdir <- "C:/clone/Modern Workflows/assignment_1/output/data/"
 4. Run the PREP.R file and you should get some local datasets in "assignment_1/output/data/"
 5. Open the ANALYZE.R file and set your paths:
-- datadir <- "C:/clone/Modern Workflows/assignment_1/output/data/"
-- graphdir <- "C:/clone/Modern Workflows/assignment_1/output/png/"
+    - datadir <- "C:/clone/Modern Workflows/assignment_1/output/data/"
+    - graphdir <- "C:/clone/Modern Workflows/assignment_1/output/png/"
 6. Run the ANALYZE.R file and you should get three graphics in "assignment_1/output/png/"
 7. Now you can write your report. 
+
+**Main findings of the project:** 
+
+![](assignment_1/output/png/total_global.png)
+The graph shows the log total number of corona cases worldwide. We see an increase in the number of cases over the time period until June. The increase in the log total number of corona cases is becoming progressively smaller and flattens out. 
+
+![](assignment_1/output/png/total_country.png)
+In this graph we again see the log total number of corona cases by country. Certain countries are highlighted in colour. In Italy, for example, we see how much the numbers increased at the end of February, while South Africa and Russia increased much later. 
+
+![](assignment_1/output/png/total_country_rate.png)
+The last graph shows the rate of infection per 100,000 cases. Here we can see, for example, that South Africa has felt little impact of the corona crisis compared to the other countries. Germany seems to have coped well with the corona crisis compared to many other countries. The rate of infection per 100,000 cases is significantly lower than in the other countries highlighted. 
+
+
+
 
