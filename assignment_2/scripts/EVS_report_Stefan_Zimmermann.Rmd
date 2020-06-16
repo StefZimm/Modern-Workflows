@@ -1,0 +1,138 @@
+---
+title: "EVS_Report_Stefan_Zimmermann"
+author: "Stefan Zimmermann"
+date: "16 6 2020"
+output: html_document
+---
+
+# Introduction
+In this assignment we will be playing with Rmarkdown. We will start with some basic stuff and then do  a batch report. By the end of the assignment you’ll do 35 reports!We will use real world data again. This time you will use the European Value Study (EVS) from 2017 andlook at attitudes towards gender roles and immigration.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Packages for the Project
+In this assignment we will be playing with Rmarkdown. We will start with some basic stuff and then do  a batch report. By the end of the assignment you’ll do 35 reports!We will use real world data again. This time you will use the European Value Study (EVS) from 2017 andlook at attitudes towards gender roles and immigration.
+
+```{r, message=FALSE, results="hide"}
+# load packages
+library(tidyverse)
+library(foreign)
+library(summarytools)
+library(webshot)
+library(htmltools)
+```
+
+```{r, include=FALSE}
+# set data path
+datapath <- "C:\\clone\\Modern Workflows\\assignment_2\\input\\raw"
+outDir   <- "C:\\clone\\Modern Workflows\\assignment_2\\input\\unzip"
+outputpath <- "C:\\clone\\Modern Workflows\\assignment_2\\output\\"
+```
+
+# Data Preparation
+In this assignment we will be playing with Rmarkdown. We will start with some basic stuff and then do  a batch report. By the end of the assignment you’ll do 35 reports!We will use real world data again. This time you will use the European Value Study (EVS) from 2017 andlook at attitudes towards gender roles and immigration.
+
+```{r, message=FALSE, results="hide"}
+# unzip datasets
+files <- list.files(datapath)
+for (i in files) {
+  print(i)
+  unzip(zipfile = paste(datapath, i , sep = "\\"), exdir = outDir)
+}
+
+get_EVS_data <- function(datapath, variables, factor) {
+  
+  # Function get_EVS_data
+  # 
+  # Args:
+  # datapath = datapath to dataframe in .sav format as string
+  # variables = research variables as vector
+  # factor = TRUE/FALSE to define class of selected variables
+  #
+  # Returns:
+  # dataset = dataframe
+  
+  data <- read.spss(datapath, use.value.label=factor, to.data.frame=TRUE)
+  subset(data,select=variables) 
+}  
+
+data <- suppressWarnings(get_EVS_data(datapath = paste0(outDir, "\\", "ZA7500_v3-0-0.sav"),
+                                      variables = c("id_cocas", "year", "age", "age_r", "age_r2",
+                                                    "age_r3", "country", "v72", "v80", "v225", "v243_ISCED_1",
+                                                    "v243_EISCED"), factor = FALSE))
+
+data2 <- suppressWarnings(get_EVS_data(datapath = paste0(outDir, "\\", "ZA7500_v3-0-0.sav"),
+                                       variables = c("id_cocas", "year", "age", "age_r", "age_r2",
+                                                     "age_r3", "country", "v72", "v80", "v225", "v243_ISCED_1",
+                                                     "v243_EISCED"), factor = TRUE))
+
+
+```
+
+# Create Summary Statistics
+In this assignment we will be playing with Rmarkdown. We will start with some basic stuff and then do  a batch report. By the end of the assignment you’ll do 35 reports!We will use real world data again. This time you will use the European Value Study (EVS) from 2017 andlook at attitudes towards gender roles and immigration.
+
+```{r, message=FALSE, results="hide"}
+get_summary <- function(dataset, output.path, source){
+  
+  # Function get_summary
+  # 
+  # Args:
+  # dataset = dataset
+  # output.path = savepath for html output
+  #
+  # Returns:
+  # html with summary statistics
+  
+  print(dfSummary(dataset, graph.magnif = 0.5, headings = FALSE),
+        file = paste0(output.path , "summary_", deparse(substitute(dataset)), ".html"), 
+        footnote = paste0("<b>Descriptive statistics</b> of ", source))
+}
+
+
+get_summary(dataset = data, 
+            output.path = outputpath,
+            source = "EVS Data: doi:10.4232/1.13511")
+
+```
+
+# Descriptives
+In this assignment we will be playing with Rmarkdown. We will start with some basic stuff and then do  a batch report. By the end of the assignment you’ll do 35 reports!We will use real world data again. This time you will use the European Value Study (EVS) from 2017 andlook at attitudes towards gender roles and immigration.
+
+```{r, echo=FALSE}
+htmltools::includeHTML("C:\\clone\\Modern Workflows\\assignment_2\\output\\summary_data.html")
+```
+
+# Graphics
+In this assignment we will be playing with Rmarkdown. We will start with some basic stuff and then do  a batch report. By the end of the assignment you’ll do 35 reports!We will use real world data again. This time you will use the European Value Study (EVS) from 2017 andlook at attitudes towards gender roles and immigration.
+
+```{r, echo=FALSE, fig.width=12}
+data %>%
+  mutate(time_fctr = factor(data$year,
+                            labels = c("2017", "2018", "2019")))%>%  
+  filter(!is.na(age_r2) & !is.na(v72)) %>%
+  ggplot(aes(x = age_r2, fill = v72)) +
+  geom_bar(position = "fill") +
+  labs(title="When a mother works for pay, the children suffer grouped:", x = "Age", y = "Proportion", caption = "Data from EVS") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_discrete(name = "Agreement to Statement") +
+  theme(legend.position = "right", legend.direction="vertical") +
+  facet_wrap(~time_fctr)
+
+data %>%
+  mutate(time_fctr = factor(data$year,
+                            labels = c("2017", "2018", "2019")))%>%  
+  filter(!is.na(age_r2) & !is.na(v80)) %>%
+  ggplot(aes(x = age_r2, fill = v80)) +
+  geom_bar(position = "fill") +
+  labs(title="When jobs are scarce, employers should give priority to British people over immigrants:", x = "Age", y = "Proportion", caption = "Data from EVS") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_discrete(name = "Agreement to Statement") +
+  theme(legend.position = "right", legend.direction="vertical") +
+  facet_wrap(~time_fctr)
+```
+
+# Regression
+In this assignment we will be playing with Rmarkdown. We will start with some basic stuff and then do  a batch report. By the end of the assignment you’ll do 35 reports!We will use real world data again. This time you will use the European Value Study (EVS) from 2017 andlook at attitudes towards gender roles and immigration.
