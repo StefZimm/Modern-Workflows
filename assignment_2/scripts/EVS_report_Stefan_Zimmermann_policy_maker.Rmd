@@ -1,0 +1,157 @@
+---
+title: "Report European Value Survey (EVS) for Policy Makers"
+author: "Stefan Zimmermann"
+date: "16 6 2020"
+output: html_document
+params: 
+  data: data
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+```
+
+# Introduction
+This project uses data from the [European Value Study (EVS)](https://search.gesis.org/research_data/ZA7500) and aims to examine attitudes towards gender roles and immigration for European countries. In the project report two variables on gender role and migration are descriptively examined and a first OLS regression is created. The project report will not only provide first results for Europe, but also additional individual reports for each country of the EVS, which will help to identify possible differences within the EU. 
+
+
+```{r, message=FALSE, results="hide"}
+# load packages
+library(tidyverse)
+library(foreign)
+library(summarytools)
+library(webshot)
+library(htmltools)
+library(caTools)
+library(texreg)
+library(purrr)
+```
+
+
+```{r, message=FALSE, results="hide"}
+# set data path
+datapath <- "C:\\clone\\Modern Workflows\\assignment_2\\input\\raw"
+outDir   <- "C:\\clone\\Modern Workflows\\assignment_2\\input\\unzip"
+output <- "C:\\clone\\Modern Workflows\\assignment_2\\output\\"
+outputpath <- "C:\\clone\\Modern Workflows\\assignment_2\\output\\country_reports\\"
+scripts <- "C:\\clone\\Modern Workflows\\assignment_2\\scripts\\"
+```
+
+# Data Preparation
+During data preparation, the required [EVS datasets (ZA7500)](https://search.gesis.org/research_data/ZA7500) are unzipped, downloaded and prepared for regression and descriptive analysis. Furthermore, the data set is reduced to the research-relevant variables. 
+
+```{r, message=FALSE, results="hide"}
+
+files <- list.files(datapath)
+for (i in files) {
+  print(i)
+  unzip(zipfile = paste(datapath, i , sep = "\\"), exdir = outDir)
+}
+
+get_EVS_data <- function(datapath, variables, factor) {
+  
+  # Function get_EVS_data 
+  # Args: 
+  # datapath = datapath to dataframe in .sav format as string 
+  # variables = research variables as vector 
+  # factor = TRUE/FALSE to define class of selected variables 
+  
+  # Returns: 
+  # dataset = dataframe
+  
+  data <- read.spss(datapath, use.value.label=factor, to.data.frame=TRUE) 
+  subset(data,select=variables) 
+}
+
+data <- suppressWarnings(get_EVS_data(datapath = paste0(outDir, "\\", "ZA7500_v3-0-0.sav"),
+                                      variables = c("id_cocas", "year", "age", "age_r", "age_r2",
+                                                    "age_r3", "country", "v72", "v80", "v225", "v243_ISCED_1",
+                                                    "v243_EISCED", "v243_r"), factor = TRUE))
+
+data2 <- suppressWarnings(get_EVS_data(datapath = paste0(outDir, "\\", "ZA7500_v3-0-0.sav"),
+                                       variables = c("id_cocas", "year", "age", "age_r", "age_r2",
+                                                     "age_r3", "country", "v72", "v80", "v225", "v243_ISCED_1",
+                                                     "v243_EISCED", "v243_r"), factor = FALSE))
+
+data$age <- data2$age 
+data$age_square <- (data$age)^2 
+levels(data$v243_EISCED)[levels(data$v243_EISCED)=="other"] <- NA 
+levels(data$v243_r)[levels(data$v243_r)=="other"] <- NA
+```
+
+# Summary Statistics
+The summary statistics of the analysis-ready data set include not only the variables of interest (v72 = When a mother works for pay, the children suffer; v80 = When jobs are scarce, employers should give priority to people of country over immigrants), but also a large number of demographic variables that are decisive for the analysis. Gender, age and educational level according to ISCED codes are used as demographic parameters. The first analysis of the whole data set shows that the survey year 2019 contains considerably less information than 2018 or 2017, the proportion of older respondents is higher and the group of young adults 15-29 is smaller. It is also particularly striking that the age limit was set at 82. This means that people who are significantly older are also considered to be 82 in the actually metric age variable, even if in reality they are much older. These special circumstances in the data must be taken into account in all results. 
+
+```{r, message=FALSE, results="hide"}
+get_summary <- function(dataset, output.path, source){
+  
+  # Function get_summary
+  # 
+  # Args:
+  # dataset = dataset
+  # output.path = savepath for html output
+  #
+  # Returns:
+  # html with summary statistics
+  
+  print(dfSummary(dataset, graph.magnif = 0.5, headings = FALSE),
+        file = paste0(output.path , "summary_", deparse(substitute(dataset)), ".html"), 
+        footnote = paste0("<b>Descriptive statistics</b> of ", source))
+}
+
+
+get_summary(dataset = data, 
+            output.path = output,
+            source = "EVS Data: doi:10.4232/1.13511")
+
+```
+
+```{r, echo=FALSE}
+htmltools::includeHTML(paste0(output, "summary_data.html"))
+```
+
+# Descriptive Statistics
+Chart 1 shows for different age groups if the respondent agrees to the statement that an employment of a woman/mother influences the development of a child negatively. The older age groups (55-64 and 65>=) agree with the statement more often than the younger age group. So it seems that age has an influence small infuence. Chart/statement 2 shows that the attitude towards migrants with the statement: "When jobs are scarce, employers should give priority to people of our country over immigrants" is almost the same. But again, it seems that the older population (65>=) has the most negative attitude towards migration. 
+
+```{r, echo=FALSE, fig.width=12}
+data %>%
+  filter(!is.na(age_r) & !is.na(v72)) %>%
+  ggplot(aes(x = age_r, fill = v72)) +
+  geom_bar(position = "fill") +
+  labs(title="When a mother works for pay, the children suffer:", x = "Age", y = "Proportion", caption = "Data from EVS") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_discrete(name = "Agreement to Statement") +
+  theme(legend.position = "right", legend.direction="vertical")
+
+data %>%
+  filter(!is.na(age_r) & !is.na(v80)) %>%
+  ggplot(aes(x = age_r, fill = v80)) +
+  geom_bar(position = "fill") +
+  labs(title="When jobs are scarce, employers should give priority to people of our country over immigrants:", x = "Age", y = "Proportion", caption = "Data from EVS") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_discrete(name = "Agreement to Statement") +
+  theme(legend.position = "right", legend.direction="vertical")
+```
+
+```{r, message=FALSE}
+set.seed(100)
+model1 <- lm(as.numeric(v72) ~ age + age_square + v225 + v243_r, data = data)
+model2 <- lm(as.numeric(v80) ~ age + age_square + v225 + v243_r, data = data)
+htmlreg(list(model1, model2),
+file = paste0(output, "regression.html"),
+single.row = TRUE,
+stars = 0.05,
+digits = 2,
+custom.coef.names = c("Intercept", "Age", "Age Squared", "Sex: Female", "Medium Education Level", "High Education Level"),
+caption = "OLS Regression on v72 (Model 1) and v80 (Model 2)",
+caption.above = TRUE)
+```
+
+# OLS Regression on v72 (Model 1) and v80 (Model 2)
+The coefficient Estimate contains six rows; the first one is the intercept. The intercept, in both models, is the expected value `r model1$coefficients[1]` (model1) `r model2$coefficients[1]` (model2)  of v72/v80 for agreeing to the statement if we consider the independent variables as 0. The next rows describe the Coefficients, or in both models, the effect of the predictors. The slope term of sex in our model is saying if a change of gender to female happens, the y variable increases/decreases by `r model1$coefficients[4]`(model1) `r model2$coefficients[4]` (model2). The p-value of this coefficient is `r summary(model1)$coefficients[4,4]` (model1) and `r summary(model2)$coefficients[4,4]` (model2). A small p-value indicates that it is unlikely we will observe a relationship between the predictor and response (v72 or v80) variables due to chance. Typically, a p-value of 0.05 or less is a good cut-off point. Three stars represent a highly significant p-value. Consequently, a small p-value for the intercept and the coefficients indicates that we can reject the null hypothesis which allows us to conclude that there is a relationship between predictor and response. 
+
+
+```{r, echo=FALSE}
+htmltools::includeHTML(paste0(output, "regression.html"))
+```

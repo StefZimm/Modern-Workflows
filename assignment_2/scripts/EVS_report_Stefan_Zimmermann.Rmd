@@ -1,19 +1,23 @@
 ---
-title: "EVS_Report_Stefan_Zimmermann"
+title: "Report European Value Survey (EVS)"
 author: "Stefan Zimmermann"
 date: "16 6 2020"
 output: html_document
+params: 
+  country: Italy
+  data: data
 ---
 
-# Introduction
-In this assignment we will be playing with Rmarkdown. We will start with some basic stuff and then do  a batch report. By the end of the assignment you’ll do 35 reports!We will use real world data again. This time you will use the European Value Study (EVS) from 2017 andlook at attitudes towards gender roles and immigration.
-
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
+
 ```
 
-# Packages for the Project
-In this assignment we will be playing with Rmarkdown. We will start with some basic stuff and then do  a batch report. By the end of the assignment you’ll do 35 reports!We will use real world data again. This time you will use the European Value Study (EVS) from 2017 andlook at attitudes towards gender roles and immigration.
+## Report on `r params$country`
+
+# Introduction
+This project uses data from the European Value Study (EVS) and aims to examine attitudes towards gender roles and immigration for European countries. In the project report two variables on gender role and migration are descriptively examined and a first OLS regression is created. In a further step, the project report will not only provide first results for Europe, but also additional reports will be prepared, which will help to identify possible differences within the EU. 
+
 
 ```{r, message=FALSE, results="hide"}
 # load packages
@@ -22,57 +26,19 @@ library(foreign)
 library(summarytools)
 library(webshot)
 library(htmltools)
-```
-
-```{r, include=FALSE}
-# set data path
-datapath <- "C:\\clone\\Modern Workflows\\assignment_2\\input\\raw"
-outDir   <- "C:\\clone\\Modern Workflows\\assignment_2\\input\\unzip"
-outputpath <- "C:\\clone\\Modern Workflows\\assignment_2\\output\\"
+library(caTools)
+library(texreg)
+library(purrr)
 ```
 
 # Data Preparation
-In this assignment we will be playing with Rmarkdown. We will start with some basic stuff and then do  a batch report. By the end of the assignment you’ll do 35 reports!We will use real world data again. This time you will use the European Value Study (EVS) from 2017 andlook at attitudes towards gender roles and immigration.
+During data preparation, the required EVS datasets (ZA7500) are unzipped, downloaded and prepared for regression and descriptive analysis. Furthermore, the data set is reduced to the research-relevant variables. 
 
 ```{r, message=FALSE, results="hide"}
-# unzip datasets
-files <- list.files(datapath)
-for (i in files) {
-  print(i)
-  unzip(zipfile = paste(datapath, i , sep = "\\"), exdir = outDir)
-}
-
-get_EVS_data <- function(datapath, variables, factor) {
-  
-  # Function get_EVS_data
-  # 
-  # Args:
-  # datapath = datapath to dataframe in .sav format as string
-  # variables = research variables as vector
-  # factor = TRUE/FALSE to define class of selected variables
-  #
-  # Returns:
-  # dataset = dataframe
-  
-  data <- read.spss(datapath, use.value.label=factor, to.data.frame=TRUE)
-  subset(data,select=variables) 
-}  
-
-data <- suppressWarnings(get_EVS_data(datapath = paste0(outDir, "\\", "ZA7500_v3-0-0.sav"),
-                                      variables = c("id_cocas", "year", "age", "age_r", "age_r2",
-                                                    "age_r3", "country", "v72", "v80", "v225", "v243_ISCED_1",
-                                                    "v243_EISCED"), factor = FALSE))
-
-data2 <- suppressWarnings(get_EVS_data(datapath = paste0(outDir, "\\", "ZA7500_v3-0-0.sav"),
-                                       variables = c("id_cocas", "year", "age", "age_r", "age_r2",
-                                                     "age_r3", "country", "v72", "v80", "v225", "v243_ISCED_1",
-                                                     "v243_EISCED"), factor = TRUE))
-
-
+data <- data[data$country == params$country, ]
 ```
 
-# Create Summary Statistics
-In this assignment we will be playing with Rmarkdown. We will start with some basic stuff and then do  a batch report. By the end of the assignment you’ll do 35 reports!We will use real world data again. This time you will use the European Value Study (EVS) from 2017 andlook at attitudes towards gender roles and immigration.
+# Summary Statistics
 
 ```{r, message=FALSE, results="hide"}
 get_summary <- function(dataset, output.path, source){
@@ -98,41 +64,50 @@ get_summary(dataset = data,
 
 ```
 
-# Descriptives
-In this assignment we will be playing with Rmarkdown. We will start with some basic stuff and then do  a batch report. By the end of the assignment you’ll do 35 reports!We will use real world data again. This time you will use the European Value Study (EVS) from 2017 andlook at attitudes towards gender roles and immigration.
-
 ```{r, echo=FALSE}
-htmltools::includeHTML("C:\\clone\\Modern Workflows\\assignment_2\\output\\summary_data.html")
+htmltools::includeHTML(paste0(outputpath, "summary_data.html"))
 ```
 
-# Graphics
-In this assignment we will be playing with Rmarkdown. We will start with some basic stuff and then do  a batch report. By the end of the assignment you’ll do 35 reports!We will use real world data again. This time you will use the European Value Study (EVS) from 2017 andlook at attitudes towards gender roles and immigration.
+# Descriptive Statistics
 
 ```{r, echo=FALSE, fig.width=12}
 data %>%
-  mutate(time_fctr = factor(data$year,
-                            labels = c("2017", "2018", "2019")))%>%  
-  filter(!is.na(age_r2) & !is.na(v72)) %>%
-  ggplot(aes(x = age_r2, fill = v72)) +
+  filter(!is.na(age_r) & !is.na(v72)) %>%
+  ggplot(aes(x = age_r, fill = v72)) +
   geom_bar(position = "fill") +
-  labs(title="When a mother works for pay, the children suffer grouped:", x = "Age", y = "Proportion", caption = "Data from EVS") +
+  labs(title="When a mother works for pay, the children suffer:", x = "Age", y = "Proportion", caption = "Data from EVS") +
   scale_y_continuous(labels = scales::percent) +
   scale_fill_discrete(name = "Agreement to Statement") +
-  theme(legend.position = "right", legend.direction="vertical") +
-  facet_wrap(~time_fctr)
+  theme(legend.position = "right", legend.direction="vertical")
 
 data %>%
-  mutate(time_fctr = factor(data$year,
-                            labels = c("2017", "2018", "2019")))%>%  
-  filter(!is.na(age_r2) & !is.na(v80)) %>%
-  ggplot(aes(x = age_r2, fill = v80)) +
+  filter(!is.na(age_r) & !is.na(v80)) %>%
+  ggplot(aes(x = age_r, fill = v80)) +
   geom_bar(position = "fill") +
-  labs(title="When jobs are scarce, employers should give priority to British people over immigrants:", x = "Age", y = "Proportion", caption = "Data from EVS") +
+  labs(title="When jobs are scarce, employers should give priority to people of our country over immigrants:", x = "Age", y = "Proportion", caption = "Data from EVS") +
   scale_y_continuous(labels = scales::percent) +
   scale_fill_discrete(name = "Agreement to Statement") +
-  theme(legend.position = "right", legend.direction="vertical") +
-  facet_wrap(~time_fctr)
+  theme(legend.position = "right", legend.direction="vertical")
 ```
 
-# Regression
-In this assignment we will be playing with Rmarkdown. We will start with some basic stuff and then do  a batch report. By the end of the assignment you’ll do 35 reports!We will use real world data again. This time you will use the European Value Study (EVS) from 2017 andlook at attitudes towards gender roles and immigration.
+```{r, message=FALSE}
+set.seed(100)
+model1 <- lm(as.numeric(v72) ~ age + age_square + v225 + v243_r, data = data)
+model2 <- lm(as.numeric(v80) ~ age + age_square + v225 + v243_r, data = data)
+htmlreg(list(model1, model2),
+file = paste0(outputpath, "regression.html"),
+single.row = TRUE,
+stars = 0.05,
+digits = 2,
+custom.coef.names = c("Intercept", "Age", "Age Squared", "Sex: Female", "Medium Education Level", "High Education Level"),
+caption = "OLS Regression on v72 (Model 1) and v80 (Model 2)",
+caption.above = TRUE)
+```
+
+# OLS Regression on v72 (Model 1) and v80 (Model 2)
+The coefficient Estimate contains six rows; the first one is the intercept. The intercept, in both models, is the expected value `r model1$coefficients[1]`(model1) `r model2$coefficients[1]` (model2)  of v72/v80 for agreeing to the statement if we consider the independent variables as 0. The next rows describe the Coefficients, or in both models, the effect of the predictors. The slope term of sex in our model is saying if a change of gender to female happens, the y variable increases/decreases by `r model1$coefficients[4]`(model1) `r model2$coefficients[4]` (model2). The p-value of this coefficient is `r summary(model1)$coefficients[4,4]` (model1) and `r summary(model2)$coefficients[4,4]` (model2). A small p-value indicates that it is unlikely we will observe a relationship between the predictor and response (v72 or v80) variables due to chance. Typically, a p-value of 0.05 or less is a good cut-off point. Three stars represent a highly significant p-value. Consequently, a small p-value for the intercept and the coefficients indicates that we can reject the null hypothesis which allows us to conclude that there is a relationship between predictor and response. 
+
+
+```{r, echo=FALSE}
+htmltools::includeHTML(paste0(outputpath, "regression.html"))
+```
