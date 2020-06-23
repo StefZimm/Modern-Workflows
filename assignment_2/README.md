@@ -36,7 +36,7 @@ individual country reports. On the top-level are the reports for policy makers a
 1. Create the folder environment explained in "Organization of the project" 
 or clone the git repo using git with the command:
     - git clone https://github.com/StefZimm/Modern-Workflows.git
-2. Download the SPSS Data from (EVS)](https://search.gesis.org/research_data/ZA7500).
+2. Download the SPSS Data from (EVS)](https://search.gesis.org/research_data/ZA7500)
 3. Go to "assignment_2/scripts subfolder".
 4. Open the EVS_country_report.R file and set your paths
 5. Run the EVS_country_report.R file and you should get your reports in the output folder
