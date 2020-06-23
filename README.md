@@ -75,7 +75,7 @@ The project (assignment 2) is divided into the three main folders input, output 
 raw data in .sav format. These raw data do not have to be unziped manually but will be automatically 
 unziped and stored there when using the scripts. The raw data is not pushed by the gitignore file on the top level. 
 - scripts: The scripts folder contains the R-file EVS_country_report and three rmarkdown files. 
-ESS_country_report.R unzip the SPSS data from: [European Value Study (EVS)](https://search.gesis.org/research_data/ZA7500), 
+ESS_country_report.R unzip the SPSS data from [European Value Study (EVS)](https://search.gesis.org/research_data/ZA7500), 
 cleans it and saves it. Moreover the script starts the three markdown scripts to create the reports as html files.
 The rmarkdown Files create the analysis for Europe for policy makers and statisticians. And the EVS_report_Stefan_Zimmermann.Rmd
 File is the main File to generate an report for each country. 
@@ -87,7 +87,7 @@ individual country reports. On the top-level are the reports for policy makers a
 1. Create the folder environment explained in "Organization of the project" 
 or clone the git repo using git with the command:
     - git clone https://github.com/StefZimm/Modern-Workflows.git
-2. Download the SPSS Data from (EVS)](https://search.gesis.org/research_data/ZA7500)
+2. Download the SPSS Data from [European Value Study (EVS)](https://search.gesis.org/research_data/ZA7500)
 3. Go to "assignment_2/scripts subfolder".
 4. Open the EVS_country_report.R file and set your paths
 5. Run the EVS_country_report.R file and you should get your reports in the output folder
