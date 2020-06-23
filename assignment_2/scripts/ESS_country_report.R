@@ -65,7 +65,7 @@ render_report <- function(path, country) {
 }
 
 # Update one report
-# render_report(path = paste0(scripts, "EVS_report_Stefan_Zimmermann.Rmd"),
+#render_report(path = paste0(scripts, "EVS_report_Stefan_Zimmermann.Rmd"),
 #              country = "Italy")
 
 # Update all country reports
