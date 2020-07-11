@@ -92,20 +92,12 @@ data_merge <- copy_to(sc, data_merge, overwrite = T)
 # data_merge
 # Germany, China,Japan, United Kingdom, US, Brazil, Mexico 
 my_table <- data_merge %>%
-  filter(Country_Region=="Brazil") %>% 
+  filter(Country_Region=="Brazil", Country_Region=="Mexico") %>% 
   collect() %>%  
   print()
 
-data_merge %>%
-  collect() %>%  
-  print()
 
 ```
-
-
-
-
-
 
 # Check Countries without infos
 data_wide$Country_Region[is.na(data_wide$`1/22/20`)]
