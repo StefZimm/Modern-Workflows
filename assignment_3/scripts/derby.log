@@ -1,0 +1,13 @@
+----------------------------------------------------------------
+Sat Jul 11 13:07:26 UTC 2020:
+Booting Derby version The Apache Software Foundation - Apache Derby - 10.12.1.1 - (1704137): instance a816c00e-0173-3dfc-d50a-00000050ba10 
+on database directory memory:/home/rstudio/Modern-Workflows/assignment_3/scripts/databaseName=metastore_db with class loader org.apache.spark.sql.hive.client.IsolatedClientLoader$$anon$1@6580f962 
+Loaded from file:/home/rstudio/spark/spark-2.4.3-bin-hadoop2.7/jars/derby-10.12.1.1.jar
+java.vendor=Private Build
+java.runtime.version=1.8.0_252-8u252-b09-1~18.04-b09
+user.dir=/home/rstudio/Modern-Workflows/assignment_3/scripts
+os.name=Linux
+os.arch=amd64
+os.version=4.15.0-1037-aws
+derby.system.home=null
+Database Class Loader started - derby.database.classpath=''
