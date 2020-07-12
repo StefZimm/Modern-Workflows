@@ -25,7 +25,7 @@ loadpackage <- function(x){
 }
 
 # load packages
-loadpackage( c("readr", "knitr", "dplyr", "tidyr", "sparklyr"))
+loadpackage( c("readr", "knitr", "dplyr", "tidyr", "sparklyr", "ggplot2"))
 ```
 ## Load [Covid-Datasets](https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data)
 
@@ -63,6 +63,11 @@ data2 <-
 
 data2$date <- as.Date(data2$day, format = "%m/%d/%y")
 data2$datecount <- data2$date-min(data2$date)
+days <- unique(data2$day)
+weeks <- days[seq(1, length(days), 7)]
+
+write_csv(data1, path = '../input/data1.csv')
+write_csv(data2, path = '../input/data2.csv')
 
 # setting up spark
 sc <- spark_connect(master = "local",
@@ -80,55 +85,67 @@ Here the data sets are prepared for merging and reshaping. The ID variables must
 Since we are only interested in countries and not in regions # we keep only a subset of the dataset without regions. Then we drop countries without information and we keep all important variables. We reshape the dataset to long format
 
 ```{r}
-data_merge <- merge(data1, data2)
-data_merge <- data_merge %>% 
-  select(Country_Region, Country_Region, day, date, count, datecount)
+data_merge <- merge(data2, data1, by = "Country_Region")
 
+data_merge <- data_merge %>% 
+  select(Country_Region, Country_Region, day, date, count, datecount, Population)
+
+write_csv(data_merge, path = '../input/data_merge.csv')
 data_merge <- copy_to(sc, data_merge, overwrite = T)
 
-#trim <- function (x) gsub("^\\s+|\\s+$", "", x)
-#data_merge <- trim(data_merge)
-
-# data_merge
 # Germany, China,Japan, United Kingdom, US, Brazil, Mexico 
-my_table <- data_merge %>%
-  filter(Country_Region=="Brazil", Country_Region=="Mexico") %>% 
+my_data <- data_merge %>%
+  filter(Country_Region=="Germany" | Country_Region=="Mexico" |
+         Country_Region=="United Kingdom" | Country_Region=="US" |
+         Country_Region=="Brazil" | Country_Region=="China" | 
+         Country_Region=="Japan") %>% 
+  mutate(rate = (count/Population)*100) %>% 
+  mutate(count2 = round((count/1000))) %>% 
   collect() %>%  
   print()
 
-
 ```
 
-# Check Countries without infos
-data_wide$Country_Region[is.na(data_wide$`1/22/20`)]
-data_wide$Country_Region[is.na(data_wide$Population)]
-# drop countries without info
-data_wide <- data_wide %>% drop_na(`1/22/20`)
-data_wide <- data_wide %>% drop_na(Population)
 
-# keep only necessary variables
-data_wide <-subset(data_wide, select = c("Country_Region", "Population",
-                                         names(data_wide)[16:length(data_wide)]))
-
-# Reshape wide to long
-data_long <- 
-  reshape(
-    data = as.data.frame(data_wide),
-    varying = list(names(data_wide)[3:length(data_wide)]),
-    timevar = "day",
-    v.names = "count",
-    idvar = c("Country_Region"),
-    direction = "long",
-    times = names(data_wide)[3:length(data_wide)]
-  )    
-```
-
-## Including Plots
+## Plots
 
 You can also embed plots, for example:
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+ggplot(data=my_data, aes(x=reorder(day, count2), y=count2, group=Country_Region, colour=Country_Region)) +
+  geom_point()+
+  geom_line()+
+  scale_x_discrete(limit = weeks)+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.title=element_blank(),
+        axis.ticks = element_blank(),
+        strip.text = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        panel.border = element_blank(), 
+        panel.background = element_blank())+
+ labs(title =  "Overall change of number of Corona Cases in TSD",
+       caption = "CSSEGISandData/COVID-19")
+
+ggsave("../output/total_change.png")
+
+ggplot(data=my_data, aes(x=reorder(day, rate), y=rate, group=Country_Region, colour=Country_Region)) +
+  geom_point()+
+  geom_line()+
+  scale_x_discrete(limit = weeks)+
+  ylim(0,2)+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.title=element_blank(),
+        axis.ticks = element_blank(),
+        strip.text = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        panel.border = element_blank(), 
+        panel.background = element_blank())+
+ labs(title =  "Overall change of infection rate in percent",
+       caption = "CSSEGISandData/COVID-19")
+
+ggsave("../output/rate_change.png")
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## Regression

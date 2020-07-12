@@ -148,7 +148,7 @@ R-Packages}\label{install-and-load-r-packages}}
 \NormalTok{\}}
 
 \CommentTok{# load packages}
-\KeywordTok{loadpackage}\NormalTok{( }\KeywordTok{c}\NormalTok{(}\StringTok{"readr"}\NormalTok{, }\StringTok{"knitr"}\NormalTok{, }\StringTok{"dplyr"}\NormalTok{, }\StringTok{"tidyr"}\NormalTok{, }\StringTok{"sparklyr"}\NormalTok{))}
+\KeywordTok{loadpackage}\NormalTok{( }\KeywordTok{c}\NormalTok{(}\StringTok{"readr"}\NormalTok{, }\StringTok{"knitr"}\NormalTok{, }\StringTok{"dplyr"}\NormalTok{, }\StringTok{"tidyr"}\NormalTok{, }\StringTok{"sparklyr"}\NormalTok{, }\StringTok{"ggplot2"}\NormalTok{))}
 \end{Highlighting}
 \end{Shaded}
 
@@ -170,45 +170,46 @@ are loaded.
 
 \CommentTok{# load datasets}
 \NormalTok{data1 <-}\StringTok{ }\KeywordTok{read_csv}\NormalTok{(url_data1)}
-\end{Highlighting}
-\end{Shaded}
-
-\begin{verbatim}
-## Parsed with column specification:
-## cols(
-##   UID = col_double(),
-##   iso2 = col_character(),
-##   iso3 = col_character(),
-##   code3 = col_double(),
-##   FIPS = col_character(),
-##   Admin2 = col_character(),
-##   Province_State = col_character(),
-##   Country_Region = col_character(),
-##   Lat = col_double(),
-##   Long_ = col_double(),
-##   Combined_Key = col_character(),
-##   Population = col_double()
-## )
-\end{verbatim}
-
-\begin{Shaded}
-\begin{Highlighting}[]
 \NormalTok{data2 <-}\StringTok{ }\KeywordTok{read_csv}\NormalTok{(url_data2)}
+
+\CommentTok{# harmonise ID-Variables in both datasets}
+\KeywordTok{names}\NormalTok{(data1)[}\KeywordTok{names}\NormalTok{(data1) }\OperatorTok{==}\StringTok{ "Long_"}\NormalTok{] <-}\StringTok{ "Long"}
+\KeywordTok{names}\NormalTok{(data2)[}\KeywordTok{names}\NormalTok{(data2) }\OperatorTok{==}\StringTok{ "Country/Region"}\NormalTok{] <-}\StringTok{ "Country_Region"}
+\KeywordTok{names}\NormalTok{(data2)[}\KeywordTok{names}\NormalTok{(data2) }\OperatorTok{==}\StringTok{ "Province/State"}\NormalTok{] <-}\StringTok{ "Province_State"}
+
+\CommentTok{# Since we are only interested in countries and not in regions}
+\CommentTok{# we keep only a subset of the dataset without regions. }
+\NormalTok{data1 <-}\KeywordTok{subset}\NormalTok{(data1, }\KeywordTok{is.na}\NormalTok{(data1}\OperatorTok{$}\NormalTok{Province_State))}
+\NormalTok{data2 <-}\KeywordTok{subset}\NormalTok{(data2, }\KeywordTok{is.na}\NormalTok{(data2}\OperatorTok{$}\NormalTok{Province_State))}
+
+\NormalTok{data2 <-}\StringTok{ }
+\StringTok{  }\KeywordTok{reshape}\NormalTok{(}
+    \DataTypeTok{data =} \KeywordTok{as.data.frame}\NormalTok{(data2),}
+    \DataTypeTok{varying =} \KeywordTok{list}\NormalTok{(}\KeywordTok{names}\NormalTok{(data2)[}\DecValTok{5}\OperatorTok{:}\KeywordTok{length}\NormalTok{(data2)]),}
+    \DataTypeTok{timevar =} \StringTok{"day"}\NormalTok{,}
+    \DataTypeTok{v.names =} \StringTok{"count"}\NormalTok{,}
+    \DataTypeTok{idvar =} \KeywordTok{c}\NormalTok{(}\StringTok{"Country_Region"}\NormalTok{),}
+    \DataTypeTok{direction =} \StringTok{"long"}\NormalTok{,}
+    \DataTypeTok{times =} \KeywordTok{names}\NormalTok{(data2)[}\DecValTok{5}\OperatorTok{:}\KeywordTok{length}\NormalTok{(data2)]}
+\NormalTok{  )  }
+
+\NormalTok{data2}\OperatorTok{$}\NormalTok{date <-}\StringTok{ }\KeywordTok{as.Date}\NormalTok{(data2}\OperatorTok{$}\NormalTok{day, }\DataTypeTok{format =} \StringTok{"%m/%d/%y"}\NormalTok{)}
+\NormalTok{data2}\OperatorTok{$}\NormalTok{datecount <-}\StringTok{ }\NormalTok{data2}\OperatorTok{$}\NormalTok{date}\OperatorTok{-}\KeywordTok{min}\NormalTok{(data2}\OperatorTok{$}\NormalTok{date)}
+\NormalTok{days <-}\StringTok{ }\KeywordTok{unique}\NormalTok{(data2}\OperatorTok{$}\NormalTok{day)}
+\NormalTok{weeks <-}\StringTok{ }\NormalTok{days[}\KeywordTok{seq}\NormalTok{(}\DecValTok{1}\NormalTok{, }\KeywordTok{length}\NormalTok{(days), }\DecValTok{7}\NormalTok{)]}
+
+\KeywordTok{write_csv}\NormalTok{(data1, }\DataTypeTok{path =} \StringTok{'../input/data1.csv'}\NormalTok{)}
+\KeywordTok{write_csv}\NormalTok{(data2, }\DataTypeTok{path =} \StringTok{'../input/data2.csv'}\NormalTok{)}
+
+\CommentTok{# setting up spark}
+\NormalTok{sc <-}\StringTok{ }\KeywordTok{spark_connect}\NormalTok{(}\DataTypeTok{master =} \StringTok{"local"}\NormalTok{,}
+                    \DataTypeTok{version =} \StringTok{"2.4.3"}\NormalTok{)}
+
+\NormalTok{data1 <-}\StringTok{ }\KeywordTok{copy_to}\NormalTok{(sc, data1, }\DataTypeTok{overwrite =}\NormalTok{ T)}
+\NormalTok{data2 <-}\StringTok{ }\KeywordTok{copy_to}\NormalTok{(sc, data2, }\DataTypeTok{overwrite =}\NormalTok{ T)}
+\KeywordTok{src_tbls}\NormalTok{(sc)}
 \end{Highlighting}
 \end{Shaded}
-
-\begin{verbatim}
-## Parsed with column specification:
-## cols(
-##   .default = col_double(),
-##   `Province/State` = col_character(),
-##   `Country/Region` = col_character()
-## )
-\end{verbatim}
-
-\begin{verbatim}
-## See spec(...) for full column specifications.
-\end{verbatim}
 
 \hypertarget{data-cleaning}{%
 \subsection{Data Cleaning}\label{data-cleaning}}
@@ -221,74 +222,140 @@ all important variables. We reshape the dataset to long format
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\CommentTok{# harmonise ID-Variables in both datasets}
-\KeywordTok{names}\NormalTok{(data1)[}\KeywordTok{names}\NormalTok{(data1) }\OperatorTok{==}\StringTok{ "Long_"}\NormalTok{] <-}\StringTok{ "Long"}
-\KeywordTok{names}\NormalTok{(data2)[}\KeywordTok{names}\NormalTok{(data2) }\OperatorTok{==}\StringTok{ "Country/Region"}\NormalTok{] <-}\StringTok{ "Country_Region"}
-\KeywordTok{names}\NormalTok{(data2)[}\KeywordTok{names}\NormalTok{(data2) }\OperatorTok{==}\StringTok{ "Province/State"}\NormalTok{] <-}\StringTok{ "Province_State"}
+\NormalTok{data_merge <-}\StringTok{ }\KeywordTok{merge}\NormalTok{(data2, data1, }\DataTypeTok{by =} \StringTok{"Country_Region"}\NormalTok{)}
 
-\CommentTok{# Since we are only interested in countries and not in regions}
-\CommentTok{# we keep only a subset of the dataset without regions. }
-\NormalTok{data1 <-}\KeywordTok{subset}\NormalTok{(data1, }\KeywordTok{is.na}\NormalTok{(data1}\OperatorTok{$}\NormalTok{Province_State))}
-\NormalTok{data2 <-}\KeywordTok{subset}\NormalTok{(data2, }\KeywordTok{is.na}\NormalTok{(data2}\OperatorTok{$}\NormalTok{Province_State))}
+\NormalTok{data_merge <-}\StringTok{ }\NormalTok{data_merge }\OperatorTok{%>%}\StringTok{ }
+\StringTok{  }\KeywordTok{select}\NormalTok{(Country_Region, Country_Region, day, date, count, datecount, Population)}
 
-\CommentTok{# merge with country name. long and lat differ in both datasets}
-\NormalTok{data_wide <-}\StringTok{ }\KeywordTok{left_join}\NormalTok{(data1, data2, }\KeywordTok{c}\NormalTok{(}\StringTok{"Country_Region"}\NormalTok{))}
+\KeywordTok{write_csv}\NormalTok{(data_merge, }\DataTypeTok{path =} \StringTok{'../input/data_merge.csv'}\NormalTok{)}
+\NormalTok{data_merge <-}\StringTok{ }\KeywordTok{copy_to}\NormalTok{(sc, data_merge, }\DataTypeTok{overwrite =}\NormalTok{ T)}
 
-\CommentTok{# Check Countries without infos}
-\NormalTok{data_wide}\OperatorTok{$}\NormalTok{Country_Region[}\KeywordTok{is.na}\NormalTok{(data_wide}\OperatorTok{$}\StringTok{`}\DataTypeTok{1/22/20}\StringTok{`}\NormalTok{)]}
-\NormalTok{data_wide}\OperatorTok{$}\NormalTok{Country_Region[}\KeywordTok{is.na}\NormalTok{(data_wide}\OperatorTok{$}\NormalTok{Population)]}
-\CommentTok{# drop countries without info}
-\NormalTok{data_wide <-}\StringTok{ }\NormalTok{data_wide }\OperatorTok{%>%}\StringTok{ }\KeywordTok{drop_na}\NormalTok{(}\StringTok{`}\DataTypeTok{1/22/20}\StringTok{`}\NormalTok{)}
-\NormalTok{data_wide <-}\StringTok{ }\NormalTok{data_wide }\OperatorTok{%>%}\StringTok{ }\KeywordTok{drop_na}\NormalTok{(Population)}
-
-\CommentTok{# keep only necessary variables}
-\NormalTok{data_wide <-}\KeywordTok{subset}\NormalTok{(data_wide, }\DataTypeTok{select =} \KeywordTok{c}\NormalTok{(}\StringTok{"Country_Region"}\NormalTok{, }\StringTok{"Population"}\NormalTok{,}
-                                         \KeywordTok{names}\NormalTok{(data_wide)[}\DecValTok{16}\OperatorTok{:}\KeywordTok{length}\NormalTok{(data_wide)]))}
-
-\CommentTok{# Reshape wide to long}
-\NormalTok{data_long <-}\StringTok{ }
-\StringTok{  }\KeywordTok{reshape}\NormalTok{(}
-    \DataTypeTok{data =} \KeywordTok{as.data.frame}\NormalTok{(data_wide),}
-    \DataTypeTok{varying =} \KeywordTok{list}\NormalTok{(}\KeywordTok{names}\NormalTok{(data_wide)[}\DecValTok{3}\OperatorTok{:}\KeywordTok{length}\NormalTok{(data_wide)]),}
-    \DataTypeTok{timevar =} \StringTok{"day"}\NormalTok{,}
-    \DataTypeTok{v.names =} \StringTok{"count"}\NormalTok{,}
-    \DataTypeTok{idvar =} \KeywordTok{c}\NormalTok{(}\StringTok{"Country_Region"}\NormalTok{),}
-    \DataTypeTok{direction =} \StringTok{"long"}\NormalTok{,}
-    \DataTypeTok{times =} \KeywordTok{names}\NormalTok{(data_wide)[}\DecValTok{3}\OperatorTok{:}\KeywordTok{length}\NormalTok{(data_wide)]}
-\NormalTok{  )    }
-\end{Highlighting}
-\end{Shaded}
-
-\hypertarget{setting-up-spark}{%
-\subsection{Setting up Spark}\label{setting-up-spark}}
-
-\begin{Shaded}
-\begin{Highlighting}[]
-\NormalTok{sc <-}\StringTok{ }\KeywordTok{spark_connect}\NormalTok{(}\DataTypeTok{master =} \StringTok{"local"}\NormalTok{,}
-                    \DataTypeTok{version =} \StringTok{"2.4.3"}\NormalTok{)}
+\CommentTok{# Germany, China,Japan, United Kingdom, US, Brazil, Mexico }
+\NormalTok{my_data <-}\StringTok{ }\NormalTok{data_merge }\OperatorTok{%>%}
+\StringTok{  }\KeywordTok{filter}\NormalTok{(Country_Region}\OperatorTok{==}\StringTok{"Germany"} \OperatorTok{|}\StringTok{ }\NormalTok{Country_Region}\OperatorTok{==}\StringTok{"Mexico"} \OperatorTok{|}
+\StringTok{         }\NormalTok{Country_Region}\OperatorTok{==}\StringTok{"United Kingdom"} \OperatorTok{|}\StringTok{ }\NormalTok{Country_Region}\OperatorTok{==}\StringTok{"US"} \OperatorTok{|}
+\StringTok{         }\NormalTok{Country_Region}\OperatorTok{==}\StringTok{"Brazil"} \OperatorTok{|}\StringTok{ }\NormalTok{Country_Region}\OperatorTok{==}\StringTok{"China"} \OperatorTok{|}\StringTok{ }
+\StringTok{         }\NormalTok{Country_Region}\OperatorTok{==}\StringTok{"Japan"}\NormalTok{) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{  }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{rate =}\NormalTok{ (count}\OperatorTok{/}\NormalTok{Population)}\OperatorTok{*}\DecValTok{100}\NormalTok{) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{  }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{count2 =} \KeywordTok{round}\NormalTok{((count}\OperatorTok{/}\DecValTok{1000}\NormalTok{))) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{  }\KeywordTok{collect}\NormalTok{() }\OperatorTok{%>%}\StringTok{  }
+\StringTok{  }\KeywordTok{print}\NormalTok{()}
 \end{Highlighting}
 \end{Shaded}
 
 \begin{verbatim}
-## Re-using existing Spark connection to local
+## # A tibble: 1,032 x 8
+##    Country_Region day   date        count datecount Population   rate
+##    <chr>          <chr> <date>      <dbl>     <dbl>      <dbl>  <dbl>
+##  1 Brazil         6/21~ 2020-06-21 1.08e6       151  212559409 0.510 
+##  2 Brazil         2/4/~ 2020-02-04 0.            13  212559409 0     
+##  3 Brazil         2/8/~ 2020-02-08 0.            17  212559409 0     
+##  4 Brazil         1/22~ 2020-01-22 0.             0  212559409 0     
+##  5 Brazil         6/19~ 2020-06-19 1.03e6       149  212559409 0.486 
+##  6 Brazil         2/6/~ 2020-02-06 0.            15  212559409 0     
+##  7 Brazil         5/9/~ 2020-05-09 1.56e5       108  212559409 0.0734
+##  8 Brazil         5/13~ 2020-05-13 1.90e5       112  212559409 0.0895
+##  9 Brazil         5/4/~ 2020-05-04 1.09e5       103  212559409 0.0511
+## 10 Brazil         5/29~ 2020-05-29 4.65e5       128  212559409 0.219 
+## # ... with 1,022 more rows, and 1 more variable: count2 <dbl>
+\end{verbatim}
+
+\hypertarget{plots}{%
+\subsection{Plots}\label{plots}}
+
+You can also embed plots, for example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{ggplot}\NormalTok{(}\DataTypeTok{data=}\NormalTok{my_data, }\KeywordTok{aes}\NormalTok{(}\DataTypeTok{x=}\KeywordTok{reorder}\NormalTok{(day, count2), }\DataTypeTok{y=}\NormalTok{count2, }\DataTypeTok{group=}\NormalTok{Country_Region, }\DataTypeTok{colour=}\NormalTok{Country_Region)) }\OperatorTok{+}
+\StringTok{  }\KeywordTok{geom_point}\NormalTok{()}\OperatorTok{+}
+\StringTok{  }\KeywordTok{geom_line}\NormalTok{()}\OperatorTok{+}
+\StringTok{  }\KeywordTok{scale_x_discrete}\NormalTok{(}\DataTypeTok{limit =}\NormalTok{ weeks)}\OperatorTok{+}
+\StringTok{  }\KeywordTok{theme}\NormalTok{(}\DataTypeTok{axis.text.x =} \KeywordTok{element_text}\NormalTok{(}\DataTypeTok{angle =} \DecValTok{90}\NormalTok{, }\DataTypeTok{hjust =} \DecValTok{1}\NormalTok{),}
+        \DataTypeTok{axis.title=}\KeywordTok{element_blank}\NormalTok{(),}
+        \DataTypeTok{axis.ticks =} \KeywordTok{element_blank}\NormalTok{(),}
+        \DataTypeTok{strip.text =} \KeywordTok{element_blank}\NormalTok{(),}
+        \DataTypeTok{panel.grid.major =} \KeywordTok{element_blank}\NormalTok{(), }
+        \DataTypeTok{panel.grid.minor =} \KeywordTok{element_blank}\NormalTok{(), }
+        \DataTypeTok{panel.border =} \KeywordTok{element_blank}\NormalTok{(), }
+        \DataTypeTok{panel.background =} \KeywordTok{element_blank}\NormalTok{())}\OperatorTok{+}
+\StringTok{ }\KeywordTok{labs}\NormalTok{(}\DataTypeTok{title =}  \StringTok{"Overall change of number of Corona Cases in TSD"}\NormalTok{,}
+       \DataTypeTok{caption =} \StringTok{"CSSEGISandData/COVID-19"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning: Removed 882 rows containing missing values (geom_point).
+\end{verbatim}
+
+\begin{verbatim}
+## Warning: Removed 882 rows containing missing values (geom_path).
+\end{verbatim}
+
+\includegraphics{../output/Analytical_Notebook_Stefan_Zimmermann_files/figure-latex/unnamed-chunk-61-1.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{ggsave}\NormalTok{(}\StringTok{"../output/total_change.png"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Saving 6.5 x 4.5 in image
+\end{verbatim}
+
+\begin{verbatim}
+## Warning: Removed 882 rows containing missing values (geom_point).
+
+## Warning: Removed 882 rows containing missing values (geom_path).
 \end{verbatim}
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\NormalTok{data1 <-}\StringTok{ }\KeywordTok{copy_to}\NormalTok{(sc, data1, }\DataTypeTok{overwrite =}\NormalTok{ T)}
-\NormalTok{data2 <-}\StringTok{ }\KeywordTok{copy_to}\NormalTok{(sc, data2, }\DataTypeTok{overwrite =}\NormalTok{ T)}
+\KeywordTok{ggplot}\NormalTok{(}\DataTypeTok{data=}\NormalTok{my_data, }\KeywordTok{aes}\NormalTok{(}\DataTypeTok{x=}\KeywordTok{reorder}\NormalTok{(day, rate), }\DataTypeTok{y=}\NormalTok{rate, }\DataTypeTok{group=}\NormalTok{Country_Region, }\DataTypeTok{colour=}\NormalTok{Country_Region)) }\OperatorTok{+}
+\StringTok{  }\KeywordTok{geom_point}\NormalTok{()}\OperatorTok{+}
+\StringTok{  }\KeywordTok{geom_line}\NormalTok{()}\OperatorTok{+}
+\StringTok{  }\KeywordTok{scale_x_discrete}\NormalTok{(}\DataTypeTok{limit =}\NormalTok{ weeks)}\OperatorTok{+}
+\StringTok{  }\KeywordTok{ylim}\NormalTok{(}\DecValTok{0}\NormalTok{,}\DecValTok{2}\NormalTok{)}\OperatorTok{+}
+\StringTok{  }\KeywordTok{theme}\NormalTok{(}\DataTypeTok{axis.text.x =} \KeywordTok{element_text}\NormalTok{(}\DataTypeTok{angle =} \DecValTok{90}\NormalTok{, }\DataTypeTok{hjust =} \DecValTok{1}\NormalTok{),}
+        \DataTypeTok{axis.title=}\KeywordTok{element_blank}\NormalTok{(),}
+        \DataTypeTok{axis.ticks =} \KeywordTok{element_blank}\NormalTok{(),}
+        \DataTypeTok{strip.text =} \KeywordTok{element_blank}\NormalTok{(),}
+        \DataTypeTok{panel.grid.major =} \KeywordTok{element_blank}\NormalTok{(), }
+        \DataTypeTok{panel.grid.minor =} \KeywordTok{element_blank}\NormalTok{(), }
+        \DataTypeTok{panel.border =} \KeywordTok{element_blank}\NormalTok{(), }
+        \DataTypeTok{panel.background =} \KeywordTok{element_blank}\NormalTok{())}\OperatorTok{+}
+\StringTok{ }\KeywordTok{labs}\NormalTok{(}\DataTypeTok{title =}  \StringTok{"Overall change of infection rate in percent"}\NormalTok{,}
+       \DataTypeTok{caption =} \StringTok{"CSSEGISandData/COVID-19"}\NormalTok{)}
 \end{Highlighting}
 \end{Shaded}
 
-\hypertarget{including-plots}{%
-\subsection{Including Plots}\label{including-plots}}
+\begin{verbatim}
+## Warning: Removed 882 rows containing missing values (geom_point).
 
-You can also embed plots, for example:
+## Warning: Removed 882 rows containing missing values (geom_path).
+\end{verbatim}
 
-\includegraphics{../output/Analytical_Notebook_Stefan_Zimmermann_files/figure-latex/pressure-1.pdf}
+\includegraphics{../output/Analytical_Notebook_Stefan_Zimmermann_files/figure-latex/unnamed-chunk-61-2.pdf}
 
-Note that the \texttt{echo\ =\ FALSE} parameter was added to the code
-chunk to prevent printing of the R code that generated the plot.
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{ggsave}\NormalTok{(}\StringTok{"../output/rate_change.png"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Saving 6.5 x 4.5 in image
+\end{verbatim}
+
+\begin{verbatim}
+## Warning: Removed 882 rows containing missing values (geom_point).
+
+## Warning: Removed 882 rows containing missing values (geom_path).
+\end{verbatim}
+
+\hypertarget{regression}{%
+\subsection{Regression}\label{regression}}
 
 
 \end{document}
