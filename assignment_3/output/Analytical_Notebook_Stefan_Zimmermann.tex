@@ -132,6 +132,25 @@
 \subsection{Install and load
 R-Packages}\label{install-and-load-r-packages}}
 
+This function installs and loads the required R-packages for the
+analytical report. The following packages are required for the report:
+
+\begin{itemize}
+\tightlist
+\item
+  readr (rectangular data like csv, tsv, and fwf)
+\item
+  knitr (engine for dynamic report generation with R)
+\item
+  dplyr (tools for data manipulation)
+\item
+  tidyr (tools for data manipulation)
+\item
+  sparklyr (R interface for Apache Spark)
+\item
+  ggplot2 (system for declaratively creating graphics)
+\end{itemize}
+
 \begin{Shaded}
 \begin{Highlighting}[]
 \CommentTok{# install and load packages}
@@ -160,7 +179,14 @@ The datasets
 \href{https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv}{UID\_ISO\_FIPS\_LookUp\_Table.csv}
 and
 \href{https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv}{time\_series\_covid19\_confirmed\_global.csv}
-are loaded.
+are loaded and then harmonised (e.g.~The ID variables must be
+standardized) to merge both datasets. Since we are only interested in
+countries and not in regions we keep only a subset of the dataset
+without countries regions combinations. To better handle the data we
+reshape the data with the date variables to long format. Since data
+variables are easy to handle in R we tidy the date variables before
+setting up the spark connection. Afterwards the Spark connection is
+established and the data sets are uploaded to Spark.
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -182,6 +208,7 @@ are loaded.
 \NormalTok{data1 <-}\KeywordTok{subset}\NormalTok{(data1, }\KeywordTok{is.na}\NormalTok{(data1}\OperatorTok{$}\NormalTok{Province_State))}
 \NormalTok{data2 <-}\KeywordTok{subset}\NormalTok{(data2, }\KeywordTok{is.na}\NormalTok{(data2}\OperatorTok{$}\NormalTok{Province_State))}
 
+\CommentTok{# reshape the dataset with the date variable in long format}
 \NormalTok{data2 <-}\StringTok{ }
 \StringTok{  }\KeywordTok{reshape}\NormalTok{(}
     \DataTypeTok{data =} \KeywordTok{as.data.frame}\NormalTok{(data2),}
@@ -205,8 +232,8 @@ are loaded.
 \NormalTok{sc <-}\StringTok{ }\KeywordTok{spark_connect}\NormalTok{(}\DataTypeTok{master =} \StringTok{"local"}\NormalTok{,}
                     \DataTypeTok{version =} \StringTok{"2.4.3"}\NormalTok{)}
 
-\NormalTok{data1 <-}\StringTok{ }\KeywordTok{copy_to}\NormalTok{(sc, data1, }\DataTypeTok{overwrite =}\NormalTok{ T)}
-\NormalTok{data2 <-}\StringTok{ }\KeywordTok{copy_to}\NormalTok{(sc, data2, }\DataTypeTok{overwrite =}\NormalTok{ T)}
+\NormalTok{data1 <-}\StringTok{ }\KeywordTok{sdf_copy_to}\NormalTok{(sc, data1, }\DataTypeTok{overwrite =}\NormalTok{ T)}
+\NormalTok{data2 <-}\StringTok{ }\KeywordTok{sdf_copy_to}\NormalTok{(sc, data2, }\DataTypeTok{overwrite =}\NormalTok{ T)}
 \KeywordTok{src_tbls}\NormalTok{(sc)}
 \end{Highlighting}
 \end{Shaded}
@@ -214,11 +241,12 @@ are loaded.
 \hypertarget{data-cleaning}{%
 \subsection{Data Cleaning}\label{data-cleaning}}
 
-Here the data sets are prepared for merging and reshaping. The ID
-variables must be standardized. Since we are only interested in
-countries and not in regions \# we keep only a subset of the dataset
-without regions. Then we drop countries without information and we keep
-all important variables. We reshape the dataset to long format
+Here the two data sets are merged. We select the needed variables and
+save the merged datasets. Now the data set is limited to the countries
+(Germany, Japan, United Kingdom, US, Brazil, Mexico) which are to be
+analyzed. Within this process new variables are created that
+logarithmise the number of corona cases, divide the number of corona
+cases by 1000 and generate the infection rate.
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -228,9 +256,9 @@ all important variables. We reshape the dataset to long format
 \StringTok{  }\KeywordTok{select}\NormalTok{(Country_Region, Country_Region, day, date, count, datecount, Population)}
 
 \KeywordTok{write_csv}\NormalTok{(data_merge, }\DataTypeTok{path =} \StringTok{'../input/data_merge.csv'}\NormalTok{)}
-\NormalTok{data_merge <-}\StringTok{ }\KeywordTok{copy_to}\NormalTok{(sc, data_merge, }\DataTypeTok{overwrite =}\NormalTok{ T)}
+\NormalTok{data_merge <-}\StringTok{ }\KeywordTok{sdf_copy_to}\NormalTok{(sc, data_merge, }\DataTypeTok{overwrite =}\NormalTok{ T)}
 
-\CommentTok{# Germany, China,Japan, United Kingdom, US, Brazil, Mexico }
+\CommentTok{# Germany,Japan, United Kingdom, US, Brazil, Mexico }
 \NormalTok{my_data <-}\StringTok{ }\NormalTok{data_merge }\OperatorTok{%>%}
 \StringTok{  }\KeywordTok{filter}\NormalTok{(Country_Region}\OperatorTok{==}\StringTok{"Germany"} \OperatorTok{|}\StringTok{ }\NormalTok{Country_Region}\OperatorTok{==}\StringTok{"Mexico"} \OperatorTok{|}
 \StringTok{         }\NormalTok{Country_Region}\OperatorTok{==}\StringTok{"United Kingdom"} \OperatorTok{|}\StringTok{ }\NormalTok{Country_Region}\OperatorTok{==}\StringTok{"US"} \OperatorTok{|}
@@ -238,32 +266,19 @@ all important variables. We reshape the dataset to long format
 \StringTok{         }\NormalTok{Country_Region}\OperatorTok{==}\StringTok{"Japan"}\NormalTok{) }\OperatorTok{%>%}\StringTok{ }
 \StringTok{  }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{rate =}\NormalTok{ (count}\OperatorTok{/}\NormalTok{Population)}\OperatorTok{*}\DecValTok{100}\NormalTok{) }\OperatorTok{%>%}\StringTok{ }
 \StringTok{  }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{count2 =} \KeywordTok{round}\NormalTok{((count}\OperatorTok{/}\DecValTok{1000}\NormalTok{))) }\OperatorTok{%>%}\StringTok{ }
-\StringTok{  }\KeywordTok{collect}\NormalTok{() }\OperatorTok{%>%}\StringTok{  }
-\StringTok{  }\KeywordTok{print}\NormalTok{()}
+\StringTok{  }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{logcount =} \KeywordTok{log}\NormalTok{(count)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{  }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{logcount =} \KeywordTok{ifelse}\NormalTok{(logcount }\OperatorTok{==}\StringTok{ }\DecValTok{0}\NormalTok{, }\OperatorTok{-}\OtherTok{Inf}\NormalTok{, logcount)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{  }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{logcount =} \KeywordTok{ifelse}\NormalTok{(}\KeywordTok{is.na}\NormalTok{(logcount) }\OperatorTok{==}\StringTok{ }\OtherTok{TRUE}\NormalTok{ , }\DecValTok{0}\NormalTok{, logcount)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{  }\KeywordTok{collect}\NormalTok{()}
+
+\NormalTok{my_data <-}\StringTok{ }\KeywordTok{sdf_copy_to}\NormalTok{(sc, my_data, }\DataTypeTok{name =} \StringTok{"my_data"}\NormalTok{, }\DataTypeTok{overwrite =} \OtherTok{TRUE}\NormalTok{)}
 \end{Highlighting}
 \end{Shaded}
-
-\begin{verbatim}
-## # A tibble: 1,032 x 8
-##    Country_Region day   date        count datecount Population   rate
-##    <chr>          <chr> <date>      <dbl>     <dbl>      <dbl>  <dbl>
-##  1 Brazil         6/21~ 2020-06-21 1.08e6       151  212559409 0.510 
-##  2 Brazil         2/4/~ 2020-02-04 0.            13  212559409 0     
-##  3 Brazil         2/8/~ 2020-02-08 0.            17  212559409 0     
-##  4 Brazil         1/22~ 2020-01-22 0.             0  212559409 0     
-##  5 Brazil         6/19~ 2020-06-19 1.03e6       149  212559409 0.486 
-##  6 Brazil         2/6/~ 2020-02-06 0.            15  212559409 0     
-##  7 Brazil         5/9/~ 2020-05-09 1.56e5       108  212559409 0.0734
-##  8 Brazil         5/13~ 2020-05-13 1.90e5       112  212559409 0.0895
-##  9 Brazil         5/4/~ 2020-05-04 1.09e5       103  212559409 0.0511
-## 10 Brazil         5/29~ 2020-05-29 4.65e5       128  212559409 0.219 
-## # ... with 1,022 more rows, and 1 more variable: count2 <dbl>
-\end{verbatim}
 
 \hypertarget{plots}{%
 \subsection{Plots}\label{plots}}
 
-You can also embed plots, for example:
+Interpretation
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -285,14 +300,14 @@ You can also embed plots, for example:
 \end{Shaded}
 
 \begin{verbatim}
-## Warning: Removed 882 rows containing missing values (geom_point).
+## Warning: Removed 888 rows containing missing values (geom_point).
 \end{verbatim}
 
 \begin{verbatim}
-## Warning: Removed 882 rows containing missing values (geom_path).
+## Warning: Removed 888 rows containing missing values (geom_path).
 \end{verbatim}
 
-\includegraphics{../output/Analytical_Notebook_Stefan_Zimmermann_files/figure-latex/unnamed-chunk-61-1.pdf}
+\includegraphics{../output/Analytical_Notebook_Stefan_Zimmermann_files/figure-latex/unnamed-chunk-5-1.pdf}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -305,9 +320,9 @@ You can also embed plots, for example:
 \end{verbatim}
 
 \begin{verbatim}
-## Warning: Removed 882 rows containing missing values (geom_point).
+## Warning: Removed 888 rows containing missing values (geom_point).
 
-## Warning: Removed 882 rows containing missing values (geom_path).
+## Warning: Removed 888 rows containing missing values (geom_path).
 \end{verbatim}
 
 \begin{Shaded}
@@ -331,12 +346,12 @@ You can also embed plots, for example:
 \end{Shaded}
 
 \begin{verbatim}
-## Warning: Removed 882 rows containing missing values (geom_point).
+## Warning: Removed 888 rows containing missing values (geom_point).
 
-## Warning: Removed 882 rows containing missing values (geom_path).
+## Warning: Removed 888 rows containing missing values (geom_path).
 \end{verbatim}
 
-\includegraphics{../output/Analytical_Notebook_Stefan_Zimmermann_files/figure-latex/unnamed-chunk-61-2.pdf}
+\includegraphics{../output/Analytical_Notebook_Stefan_Zimmermann_files/figure-latex/unnamed-chunk-5-2.pdf}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -349,13 +364,48 @@ You can also embed plots, for example:
 \end{verbatim}
 
 \begin{verbatim}
-## Warning: Removed 882 rows containing missing values (geom_point).
+## Warning: Removed 888 rows containing missing values (geom_point).
 
-## Warning: Removed 882 rows containing missing values (geom_path).
+## Warning: Removed 888 rows containing missing values (geom_path).
 \end{verbatim}
 
 \hypertarget{regression}{%
 \subsection{Regression}\label{regression}}
+
+Interpretation
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{partitions <-}\StringTok{ }\NormalTok{my_data }\OperatorTok{%>%}
+\StringTok{  }\KeywordTok{sdf_random_split}\NormalTok{(}\DataTypeTok{training =} \FloatTok{0.7}\NormalTok{, }\DataTypeTok{test =} \FloatTok{0.3}\NormalTok{, }\DataTypeTok{seed =} \DecValTok{1111}\NormalTok{)}
+
+\NormalTok{my_data_training <-}\StringTok{ }\NormalTok{partitions}\OperatorTok{$}\NormalTok{training}
+\NormalTok{my_data_test <-}\StringTok{ }\NormalTok{partitions}\OperatorTok{$}\NormalTok{test}
+
+\NormalTok{lm_model <-}\StringTok{ }\NormalTok{my_data_training }\OperatorTok{%>%}
+\StringTok{  }\KeywordTok{ml_linear_regression}\NormalTok{(logcount }\OperatorTok{~}\StringTok{ }\NormalTok{Country_Region }\OperatorTok{+}\StringTok{ }\NormalTok{Population }\OperatorTok{+}\StringTok{ }\NormalTok{datecount) }\OperatorTok{%>%}\StringTok{   }
+\StringTok{  }\KeywordTok{summary}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Deviance Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -335.11 -116.23  -45.36  124.13  427.88 
+## 
+## Coefficients:
+##                   (Intercept)         Country_Region_Brazil 
+##                  9.546045e+01                 -9.090564e+00 
+##        Country_Region_Germany         Country_Region_Mexico 
+##                 -3.554955e+01                 -3.302603e+01 
+## Country_Region_United Kingdom             Country_Region_US 
+##                 -2.954663e+00                 -9.505013e+00 
+##                    Population                     datecount 
+##                 -1.729656e-08                  1.793819e+00 
+## 
+## R-Squared: 0.2368
+## Root Mean Squared Error: 162.5
+\end{verbatim}
 
 
 \end{document}
