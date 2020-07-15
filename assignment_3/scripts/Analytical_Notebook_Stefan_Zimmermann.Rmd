@@ -2,12 +2,28 @@
 title: "Analytical Notebook"
 author: "Stefan Zimmermann"
 date: "11 7 2020"
-output: pdf_document
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
+## Introduction
+
+This analytical notebook is a project for the IPSDS course Modern Workflow in Data Science. 
+In the project assignment 3 the number of Corona cases and the infection rate of specific will be examined and explained with the help of 
+corona data from [github](https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data). 
+The analyitical notebook should create two illustrations and one linear model: 
+
+1. Overall change of number of Corona Cases
+2. Overall change of infection rate in percent 
+3. A ml_linear_regression explaining the log of number of Corona cases
+
+To write this report we have to set-up RStudio server on Amazon Web Services (AWS) and use Spark there. Instructions for setting up a Rstudio server with AWS can be found [here](https://towardsdatascience.com/how-to-run-rstudio-on-aws-in-under-3-minutes-for-free-65f8d0b6ccda). 
 
 ## Install and load R-Packages
 
@@ -19,6 +35,7 @@ This function installs and loads the required R-packages for the analytical repo
 - tidyr (tools for data manipulation)
 - sparklyr (R interface for Apache Spark)
 - ggplot2 (system for declaratively creating graphics)
+
 
 ```{r, message=FALSE, results="hide"}
 # install and load packages
@@ -97,6 +114,7 @@ src_tbls(sc)
 
 Here the two data sets are merged. We select the needed variables and save the merged datasets. Now the data set is limited to the countries (Germany, Japan, United Kingdom, US, Brazil, Mexico) which are to be analyzed. Within this process new variables are created that logarithmise the number of corona cases, divide the number of corona cases by 1000 and generate the infection rate. 
 
+
 ```{r}
 data_merge <- merge(data2, data1, by = "Country_Region")
 
@@ -115,21 +133,21 @@ my_data <- data_merge %>%
   mutate(rate = (count/Population)*100) %>% 
   mutate(count2 = round((count/1000))) %>% 
   mutate(logcount = log(count)) %>% 
-  mutate(logcount = ifelse(logcount == 0, -Inf, logcount)) %>% 
-  mutate(logcount = ifelse(is.na(logcount) == TRUE , 0, logcount)) %>% 
+  mutate(logcount = ifelse(count == 0, 0, logcount)) %>% 
   collect()
 
 my_data <- sdf_copy_to(sc, my_data, name = "my_data", overwrite = TRUE)
 
 ```
 
-
 ## Plots
 
-Interpretation
+The following code produces a line chart that describes the increase in corona cases over a certain period of time. The countries Brazil, Japan, Mexico, Germany, USA and Great Britain are shown. The X-axis shows the observation period and the Y-axis shows the absolute corona cases of a country over time. It can be seen that in all countries the corona pandemic becomes visible with proven cases from mid-March onwards, but Japan does not show much increase and in Mexico the increase of proven cases starts later. While Japan, Great Britain and Germany seem to have the pandemic under control, the figures for Brazil and the USA are still rising very rapidly. The growth appears exponential. In Mexico the increase starts later but seems to follow the trend of Brazil and USA. 
 
-```{r}
-ggplot(data=my_data, aes(x=reorder(day, count2), y=count2, group=Country_Region, colour=Country_Region)) +
+
+```{r, message = FALSE, warning = FALSE}
+ggplot(data=my_data, aes(x=reorder(day, count2), y=count2, 
+                         group=Country_Region, colour=Country_Region)) +
   geom_point()+
   geom_line()+
   scale_x_discrete(limit = weeks)+
@@ -145,8 +163,13 @@ ggplot(data=my_data, aes(x=reorder(day, count2), y=count2, group=Country_Region,
        caption = "CSSEGISandData/COVID-19")
 
 ggsave("../output/total_change.png")
+```
 
-ggplot(data=my_data, aes(x=reorder(day, rate), y=rate, group=Country_Region, colour=Country_Region)) +
+The following code produces a line chart that describes the infection rate in corona cases over a certain period of time. The countries Brazil, Japan, Mexico, Germany, USA and Great Britain are shown. The X-axis shows the observation period and the Y-axis shows the infection rate of a country over time in percent. The infection rate considers the total population of the country. In contrast to the absolute figures, this makes it possible to compare the trends better. As we can see, Brazil, Mexico and the USA still have a rising infection rate. In the other countries the strong increase could be slowed down. Japan and Germany seem to have been particularly successful in dealing with the pandemic. 
+
+```{r, message = FALSE, warning = FALSE}
+ggplot(data=my_data, aes(x=reorder(day, rate), y=rate, 
+                         group=Country_Region, colour=Country_Region)) +
   geom_point()+
   geom_line()+
   scale_x_discrete(limit = weeks)+
@@ -167,9 +190,10 @@ ggsave("../output/rate_change.png")
 
 ## Regression
 
-Interpretation
+In this chapter we run an ml_linear_regression explaining the log of number of cases using: country, population size and day since the start of the pandemic. Therefore we split the sample into training and test data set and run the regression on the training data set. 
 
-```{r}
+```{r message = FALSE, warning = FALSE}
+
 partitions <- my_data %>%
   sdf_random_split(training = 0.7, test = 0.3, seed = 1111)
 
@@ -177,7 +201,14 @@ my_data_training <- partitions$training
 my_data_test <- partitions$test
 
 lm_model <- my_data_training %>%
-  ml_linear_regression(logcount ~ Country_Region + Population + datecount) %>%   
-  summary()
+  ml_linear_regression(logcount ~ Country_Region + Population + datecount,
+                       standardization=FALSE) 
+
+lm_model
+
 ```
+
+The model contains eight coefficents and the models formula is `r lm_model$formula`
+The first coefficient of the output is the intercept. The intercept, in this model models, is `r round(lm_model$coefficients[1],2)`. We can say that `r round(lm_model$coefficients[1], 2)` is the unconditional expected mean of log of number of Corona cases. Therefore the exponentiated value is `r round(((exp(lm_model$coefficients[1]))-1)*100,2)` percent. For the Country of Brazil, we can say that for a change from not Brazil to Brazil, we expected to see about `r round(((exp(lm_model$coefficients[2]))-1)*100, 2)` percent of increase of the average of number of Corona cases. For a metric variable for example datecount, we can say that for a one-unit increase in datecount, we expected to see about `r round((exp(lm_model$coefficients[8])-1)*100,2)` percent of increase of the average of number of Corona cases.
+
 

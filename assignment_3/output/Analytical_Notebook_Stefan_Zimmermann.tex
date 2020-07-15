@@ -1,3 +1,6 @@
+\PassOptionsToPackage{unicode=true}{hyperref} % options for packages loaded elsewhere
+\PassOptionsToPackage{hyphens}{url}
+%
 \documentclass[]{article}
 \usepackage{lmodern}
 \usepackage{amssymb,amsmath}
@@ -6,29 +9,32 @@
 \ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
   \usepackage[T1]{fontenc}
   \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provides euro and other symbols
 \else % if luatex or xelatex
-  \ifxetex
-    \usepackage{mathspec}
-  \else
-    \usepackage{fontspec}
-  \fi
+  \usepackage{unicode-math}
   \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
 \fi
 % use upquote if available, for straight quotes in verbatim environments
 \IfFileExists{upquote.sty}{\usepackage{upquote}}{}
 % use microtype if available
 \IfFileExists{microtype.sty}{%
-\usepackage{microtype}
+\usepackage[]{microtype}
 \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
 }{}
-\usepackage[margin=1in]{geometry}
+\IfFileExists{parskip.sty}{%
+\usepackage{parskip}
+}{% else
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+}
 \usepackage{hyperref}
-\hypersetup{unicode=true,
+\hypersetup{
             pdftitle={Analytical Notebook},
             pdfauthor={Stefan Zimmermann},
             pdfborder={0 0 0},
             breaklinks=true}
 \urlstyle{same}  % don't use monospace font for urls
+\usepackage[margin=1in]{geometry}
 \usepackage{color}
 \usepackage{fancyvrb}
 \newcommand{\VerbBar}{|}
@@ -78,12 +84,6 @@
 % margins by default, and it is still possible to overwrite the defaults
 % using explicit options in \includegraphics[width, height, ...]{}
 \setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
-\IfFileExists{parskip.sty}{%
-\usepackage{parskip}
-}{% else
-\setlength{\parindent}{0pt}
-\setlength{\parskip}{6pt plus 2pt minus 1pt}
-}
 \setlength{\emergencystretch}{3em}  % prevent overfull lines
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
@@ -98,35 +98,45 @@
 \renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
 \fi
 
-%%% Use protect on footnotes to avoid problems with footnotes in titles
-\let\rmarkdownfootnote\footnote%
-\def\footnote{\protect\rmarkdownfootnote}
+% set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
 
-%%% Change title format to be more compact
-\usepackage{titling}
 
-% Create subtitle command for use in maketitle
-\providecommand{\subtitle}[1]{
-  \posttitle{
-    \begin{center}\large#1\end{center}
-    }
-}
-
-\setlength{\droptitle}{-2em}
-
-  \title{Analytical Notebook}
-    \pretitle{\vspace{\droptitle}\centering\huge}
-  \posttitle{\par}
-    \author{Stefan Zimmermann}
-    \preauthor{\centering\large\emph}
-  \postauthor{\par}
-      \predate{\centering\large\emph}
-  \postdate{\par}
-    \date{11 7 2020}
-
+\title{Analytical Notebook}
+\author{Stefan Zimmermann}
+\date{11 7 2020}
 
 \begin{document}
 \maketitle
+
+\hypertarget{introduction}{%
+\subsection{Introduction}\label{introduction}}
+
+This analytical notebook is a project for the IPSDS course Modern
+Workflow in Data Science. In the project assignment 3 the number of
+Corona cases and the infection rate of specific will be examined and
+explained with the help of corona data from
+\href{https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data}{github}.
+The analyitical notebook should create two illustrations and one linear
+model:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Overall change of number of Corona Cases
+\item
+  Overall change of infection rate in percent
+\item
+  A ml\_linear\_regression explaining the log of number of Corona cases
+\end{enumerate}
+
+To write this report we have to set-up RStudio server on Amazon Web
+Services (AWS) and use Spark there. Instructions for setting up a
+Rstudio server with AWS can be found
+\href{https://towardsdatascience.com/how-to-run-rstudio-on-aws-in-under-3-minutes-for-free-65f8d0b6ccda}{here}.
 
 \hypertarget{install-and-load-r-packages}{%
 \subsection{Install and load
@@ -191,8 +201,10 @@ established and the data sets are uploaded to Spark.
 \begin{Shaded}
 \begin{Highlighting}[]
 \CommentTok{# use url to current dataset}
-\NormalTok{url_data1 <-}\StringTok{ "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv"}
-\NormalTok{url_data2 <-}\StringTok{ "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv"}
+\NormalTok{url_data1 <-}\StringTok{ }
+\StringTok{"https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv"}
+\NormalTok{url_data2 <-}\StringTok{ }
+\StringTok{"https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv"}
 
 \CommentTok{# load datasets}
 \NormalTok{data1 <-}\StringTok{ }\KeywordTok{read_csv}\NormalTok{(url_data1)}
@@ -267,8 +279,7 @@ cases by 1000 and generate the infection rate.
 \StringTok{  }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{rate =}\NormalTok{ (count}\OperatorTok{/}\NormalTok{Population)}\OperatorTok{*}\DecValTok{100}\NormalTok{) }\OperatorTok{%>%}\StringTok{ }
 \StringTok{  }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{count2 =} \KeywordTok{round}\NormalTok{((count}\OperatorTok{/}\DecValTok{1000}\NormalTok{))) }\OperatorTok{%>%}\StringTok{ }
 \StringTok{  }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{logcount =} \KeywordTok{log}\NormalTok{(count)) }\OperatorTok{%>%}\StringTok{ }
-\StringTok{  }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{logcount =} \KeywordTok{ifelse}\NormalTok{(logcount }\OperatorTok{==}\StringTok{ }\DecValTok{0}\NormalTok{, }\OperatorTok{-}\OtherTok{Inf}\NormalTok{, logcount)) }\OperatorTok{%>%}\StringTok{ }
-\StringTok{  }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{logcount =} \KeywordTok{ifelse}\NormalTok{(}\KeywordTok{is.na}\NormalTok{(logcount) }\OperatorTok{==}\StringTok{ }\OtherTok{TRUE}\NormalTok{ , }\DecValTok{0}\NormalTok{, logcount)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{  }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{logcount =} \KeywordTok{ifelse}\NormalTok{(count }\OperatorTok{==}\StringTok{ }\DecValTok{0}\NormalTok{, }\DecValTok{0}\NormalTok{, logcount)) }\OperatorTok{%>%}\StringTok{ }
 \StringTok{  }\KeywordTok{collect}\NormalTok{()}
 
 \NormalTok{my_data <-}\StringTok{ }\KeywordTok{sdf_copy_to}\NormalTok{(sc, my_data, }\DataTypeTok{name =} \StringTok{"my_data"}\NormalTok{, }\DataTypeTok{overwrite =} \OtherTok{TRUE}\NormalTok{)}
@@ -278,11 +289,22 @@ cases by 1000 and generate the infection rate.
 \hypertarget{plots}{%
 \subsection{Plots}\label{plots}}
 
-Interpretation
+The following code produces a line chart that describes the increase in
+corona cases over a certain period of time. The countries Brazil, Japan,
+Mexico, Germany, USA and Great Britain are shown. The X-axis shows the
+observation period and the Y-axis shows the absolute corona cases of a
+country over time. It can be seen that in all countries the corona
+pandemic becomes visible with proven cases from mid-March onwards, but
+Japan does not show much increase and in Mexico the increase of proven
+cases starts later. While Japan, Great Britain and Germany seem to have
+the pandemic under control, the figures for Brazil and the USA are still
+rising very rapidly. The growth appears exponential. In Mexico the
+increase starts later but seems to follow the trend of Brazil and USA.
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\KeywordTok{ggplot}\NormalTok{(}\DataTypeTok{data=}\NormalTok{my_data, }\KeywordTok{aes}\NormalTok{(}\DataTypeTok{x=}\KeywordTok{reorder}\NormalTok{(day, count2), }\DataTypeTok{y=}\NormalTok{count2, }\DataTypeTok{group=}\NormalTok{Country_Region, }\DataTypeTok{colour=}\NormalTok{Country_Region)) }\OperatorTok{+}
+\KeywordTok{ggplot}\NormalTok{(}\DataTypeTok{data=}\NormalTok{my_data, }\KeywordTok{aes}\NormalTok{(}\DataTypeTok{x=}\KeywordTok{reorder}\NormalTok{(day, count2), }\DataTypeTok{y=}\NormalTok{count2, }
+                         \DataTypeTok{group=}\NormalTok{Country_Region, }\DataTypeTok{colour=}\NormalTok{Country_Region)) }\OperatorTok{+}
 \StringTok{  }\KeywordTok{geom_point}\NormalTok{()}\OperatorTok{+}
 \StringTok{  }\KeywordTok{geom_line}\NormalTok{()}\OperatorTok{+}
 \StringTok{  }\KeywordTok{scale_x_discrete}\NormalTok{(}\DataTypeTok{limit =}\NormalTok{ weeks)}\OperatorTok{+}
@@ -299,15 +321,7 @@ Interpretation
 \end{Highlighting}
 \end{Shaded}
 
-\begin{verbatim}
-## Warning: Removed 888 rows containing missing values (geom_point).
-\end{verbatim}
-
-\begin{verbatim}
-## Warning: Removed 888 rows containing missing values (geom_path).
-\end{verbatim}
-
-\includegraphics{../output/Analytical_Notebook_Stefan_Zimmermann_files/figure-latex/unnamed-chunk-5-1.pdf}
+\includegraphics{../output/Analytical_Notebook_Stefan_Zimmermann_files/figure-latex/unnamed-chunk-4-1.pdf}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -315,19 +329,22 @@ Interpretation
 \end{Highlighting}
 \end{Shaded}
 
-\begin{verbatim}
-## Saving 6.5 x 4.5 in image
-\end{verbatim}
-
-\begin{verbatim}
-## Warning: Removed 888 rows containing missing values (geom_point).
-
-## Warning: Removed 888 rows containing missing values (geom_path).
-\end{verbatim}
+The following code produces a line chart that describes the infection
+rate in corona cases over a certain period of time. The countries
+Brazil, Japan, Mexico, Germany, USA and Great Britain are shown. The
+X-axis shows the observation period and the Y-axis shows the infection
+rate of a country over time in percent. The infection rate considers the
+total population of the country. In contrast to the absolute figures,
+this makes it possible to compare the trends better. As we can see,
+Brazil, Mexico and the USA still have a rising infection rate. In the
+other countries the strong increase could be slowed down. Japan and
+Germany seem to have been particularly successful in dealing with the
+pandemic.
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\KeywordTok{ggplot}\NormalTok{(}\DataTypeTok{data=}\NormalTok{my_data, }\KeywordTok{aes}\NormalTok{(}\DataTypeTok{x=}\KeywordTok{reorder}\NormalTok{(day, rate), }\DataTypeTok{y=}\NormalTok{rate, }\DataTypeTok{group=}\NormalTok{Country_Region, }\DataTypeTok{colour=}\NormalTok{Country_Region)) }\OperatorTok{+}
+\KeywordTok{ggplot}\NormalTok{(}\DataTypeTok{data=}\NormalTok{my_data, }\KeywordTok{aes}\NormalTok{(}\DataTypeTok{x=}\KeywordTok{reorder}\NormalTok{(day, rate), }\DataTypeTok{y=}\NormalTok{rate, }
+                         \DataTypeTok{group=}\NormalTok{Country_Region, }\DataTypeTok{colour=}\NormalTok{Country_Region)) }\OperatorTok{+}
 \StringTok{  }\KeywordTok{geom_point}\NormalTok{()}\OperatorTok{+}
 \StringTok{  }\KeywordTok{geom_line}\NormalTok{()}\OperatorTok{+}
 \StringTok{  }\KeywordTok{scale_x_discrete}\NormalTok{(}\DataTypeTok{limit =}\NormalTok{ weeks)}\OperatorTok{+}
@@ -345,13 +362,7 @@ Interpretation
 \end{Highlighting}
 \end{Shaded}
 
-\begin{verbatim}
-## Warning: Removed 888 rows containing missing values (geom_point).
-
-## Warning: Removed 888 rows containing missing values (geom_path).
-\end{verbatim}
-
-\includegraphics{../output/Analytical_Notebook_Stefan_Zimmermann_files/figure-latex/unnamed-chunk-5-2.pdf}
+\includegraphics{../output/Analytical_Notebook_Stefan_Zimmermann_files/figure-latex/unnamed-chunk-5-1.pdf}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -359,20 +370,13 @@ Interpretation
 \end{Highlighting}
 \end{Shaded}
 
-\begin{verbatim}
-## Saving 6.5 x 4.5 in image
-\end{verbatim}
-
-\begin{verbatim}
-## Warning: Removed 888 rows containing missing values (geom_point).
-
-## Warning: Removed 888 rows containing missing values (geom_path).
-\end{verbatim}
-
 \hypertarget{regression}{%
 \subsection{Regression}\label{regression}}
 
-Interpretation
+In this chapter we run an ml\_linear\_regression explaining the log of
+number of cases using: country, population size and day since the start
+of the pandemic. Therefore we split the sample into training and test
+data set and run the regression on the training data set.
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -383,29 +387,37 @@ Interpretation
 \NormalTok{my_data_test <-}\StringTok{ }\NormalTok{partitions}\OperatorTok{$}\NormalTok{test}
 
 \NormalTok{lm_model <-}\StringTok{ }\NormalTok{my_data_training }\OperatorTok{%>%}
-\StringTok{  }\KeywordTok{ml_linear_regression}\NormalTok{(logcount }\OperatorTok{~}\StringTok{ }\NormalTok{Country_Region }\OperatorTok{+}\StringTok{ }\NormalTok{Population }\OperatorTok{+}\StringTok{ }\NormalTok{datecount) }\OperatorTok{%>%}\StringTok{   }
-\StringTok{  }\KeywordTok{summary}\NormalTok{()}
+\StringTok{  }\KeywordTok{ml_linear_regression}\NormalTok{(logcount }\OperatorTok{~}\StringTok{ }\NormalTok{Country_Region }\OperatorTok{+}\StringTok{ }\NormalTok{Population }\OperatorTok{+}\StringTok{ }\NormalTok{datecount,}
+                       \DataTypeTok{standardization=}\OtherTok{FALSE}\NormalTok{) }
+
+\NormalTok{lm_model}
 \end{Highlighting}
 \end{Shaded}
 
 \begin{verbatim}
-## Deviance Residuals:
-##     Min      1Q  Median      3Q     Max 
-## -335.11 -116.23  -45.36  124.13  427.88 
+## Formula: logcount ~ Country_Region + Population + datecount
 ## 
 ## Coefficients:
 ##                   (Intercept)         Country_Region_Brazil 
-##                  9.546045e+01                 -9.090564e+00 
+##                  3.334861e-01                  2.204834e-01 
 ##        Country_Region_Germany         Country_Region_Mexico 
-##                 -3.554955e+01                 -3.302603e+01 
-## Country_Region_United Kingdom             Country_Region_US 
-##                 -2.954663e+00                 -9.505013e+00 
+##                  1.478153e+00                 -6.029792e-01 
+##             Country_Region_US Country_Region_United Kingdom 
+##                  1.747382e+00                  1.479916e+00 
 ##                    Population                     datecount 
-##                 -1.729656e-08                  1.793819e+00 
-## 
-## R-Squared: 0.2368
-## Root Mean Squared Error: 162.5
+##                  3.825215e-09                  7.999951e-02
 \end{verbatim}
 
+The model contains eight coefficents and the models formula is logcount
+\textasciitilde{} Country\_Region + Population + datecount The first
+coefficient of the output is the intercept. The intercept, in this model
+models, is 0.33. We can say that 0.33 is the unconditional expected mean
+of log of number of Corona cases. Therefore the exponentiated value is
+39.58 percent. For the Country of Brazil, we can say that for a change
+from not Brazil to Brazil, we expected to see about 24.67 percent of
+increase of the average of number of Corona cases. For a metric variable
+for example datecount, we can say that for a one-unit increase in
+datecount, we expected to see about 8.33 percent of increase of the
+average of number of Corona cases.
 
 \end{document}
