@@ -1,8 +1,176 @@
-library(shiny)
+# Assignment 4
+# from: Stefan Zimmermann
 
-ui <- fluidPage(
+# 1. Data Prep
+# Repo-Script path
+setwd("C:/clone/Modern Workflows/assignment_4/scripts")
+
+
+# install and load packages
+loadpackage <- function(x){
+  for( i in x ){
+    #  require returns TRUE invisibly if it was able to load package
+    if( ! require( i , character.only = TRUE ) ){
+      #  If package was not able to be loaded then re-install
+      install.packages( i , dependencies = TRUE )
+    }
+    #  Load package (after installing)
+    library( i , character.only = TRUE )
+  }
+}
+
+# load packages
+loadpackage( c("tidyverse", "dplyr", "tidyr", "foreign", "shiny", "shinythemes",
+               "summarytools", "janitor", "formattable", "data.table", "rsconnect"))
+
+
+# set up rsconnect to shinyapp.to
+rsconnect::setAccountInfo(name='wvsapp',
+                          token='FABA818BE5F84DE71C2EFD8A9365590C',
+                          secret='6WcCNO6Z17IiW2BDNFdQ4D6oPJFqUFj42jbnBBZx')
+
+# Variables of interest
+variables <- c("V2", "V228A", "V228B", "V228C", "V228D", "V228E", "V228F", "V228G", "V228H",
+               "V228I", "V217", "V218", "V219", "V220", "V221", "V222", "V223", "V224", 
+               "V192", "V193", "V194", "V195", "V196", "V197")
+
+# Labels of variables
+label_V228A <-  "How often in country's elections: Votes are counted fairly"
+label_V228B <-  "How often in country's elections: Opposition candidates are prevented from running"
+label_V228C <-  "How often in country's elections: TV news favors the governing Party"
+label_V228D <-  "How often in country's elections: Voters are bribed"
+label_V228E <-  "How often in country's elections: Journalists provide fair coverage of elections"
+label_V228F <-  "How often in country's elections: Election officials are fair"
+label_V228G <-  "How often in country's elections: Rich people buy elections"
+label_V228H <-  "How often in country's elections: Voters are threatened with  violence"
+label_V228I <-  "How often in country's elections: Voters are offered a genuine choice in the election"
+
+pol_choices <- gsub('.+: ', "", c(label_V228A, label_V228B, label_V228C, 
+                                  label_V228D, label_V228E, label_V228F, 
+                                  label_V228G, label_V228H, label_V228I))
+
+label_V217 <- "Information source: Daily newspaper"
+label_v218 <- "Information source: Printed magazines"
+label_v219 <- "Information source: TV news" 
+label_v220 <- "Information source: Radio news" 
+label_v221 <- "Information source: Mobile phone"
+label_v222 <- "Information source: Email"
+label_v223 <- "Information source: Internet" 
+label_v224 <- "Information source: Talk with friends or colleagues" 
+
+news_choices <-  gsub('.+: ', "", c(label_V217, label_v218, label_v219, 
+                                    label_v220, label_v221, label_v222, 
+                                    label_v223, label_v224))
+
+label_v192 <- "Science and technology are making our lives healthier, easier, and more comfortable"
+label_v193 <- "Science and technology, there will be more opportunities for the next"
+label_v194 <- "We depend too much on science and not enough on faith"
+label_v195 <- "One of the bad effects of science is that it breaks down peoples ideas of right"
+label_v196 <- "It is not important for me to know about science in my daily life"
+label_v197 <- "The world is better off, or worse off, because of science and technology"
+
+science_choices <-  gsub('.+: ', "", c(label_v192, label_v193, label_v194, 
+                                       label_v195, label_v196, label_v197))
+
+
+# Prepare Dataset
+# unzip dataset
+files <- list.files("../input/raw/")
+for (i in files) {
+  print(i)
+  unzip(zipfile = paste("../input/raw", i , sep = "/"), exdir = "../input/unzip")
+}
+
+get_WVS_data <- function(datapath, variables, factor) {
   
-  titlePanel("World Value Study (WVS) Dashboard"),
+  # Function get_WVS_data 
+  # Args: 
+  # datapath = datapath to dataframe in .sav format as string 
+  # variables = research variables as vector 
+  # factor = TRUE/FALSE to define class of selected variables 
+  
+  # Returns: 
+  # dataset = dataframe
+  
+  data <- read.spss(datapath, use.value.label=factor, to.data.frame=TRUE) 
+  subset(data,select=variables) 
+}
+
+# get overall proportopns table
+get_table_overall <- function(var) { 
+  
+  data_all <- data %>%
+    drop_na({{ var }}) %>%
+    count({{ var }}) %>%
+    mutate(Proportion = prop.table(n)*100)%>%
+    mutate(overall="World")
+  
+  return(data_all)
+}
+
+# get proportion table by country
+get_table_filter <- function(var, filter) { 
+  filter_data <-  data %>% 
+    filter(V2 == filter) %>%
+    drop_na({{ var }}) %>%
+    count({{ var }}) %>%
+    mutate(Proportion = prop.table(n)*100)%>%
+    mutate(overall=filter)
+  
+  return(filter_data)
+}
+
+# create barplot
+get_plot <- function(var, data, title) { 
+  
+  ggplot(data, aes(fill=overall, y=Proportion, x={{ var }})) + 
+    geom_bar(position="dodge", stat="identity") +
+    labs(y = "Proporton",
+         title = title,
+         caption = "Data: WVS Wave 6")+
+    ylim(0,100)+
+    theme_bw() +
+    theme(axis.line = element_line(colour = "black"),
+          axis.title.x=element_blank(),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank())+
+    theme(legend.title=element_blank(),
+          legend.position = "bottom")
+  
+}
+
+# load dataset
+data <- suppressWarnings(get_WVS_data(datapath = paste0("../input/unzip/", list.files("../input/unzip")),
+                                      variables = variables, 
+                                      factor = TRUE))
+
+# recode large scale
+data <- data %>% 
+  mutate_at(vars(V192,V193,V194,V195,V196,V197), recode,  
+            `2` = "disagree", `3`  = "disagree", `4` = "disagree",
+            `6` = "agree", `7` = "agree", `8`  = "agree", `9` = "agree",
+            `5` = "indecisive")
+
+# rename varnames
+setnames(data, variables[2:length(variables)], c(pol_choices, news_choices, science_choices))
+
+# delete missing attributes of country variable
+country_names <- (attributes(data$V2)[1])$levels
+country_names <- sort(country_names[6:length(country_names)])
+
+# 2. Creating the App
+deployApp()
+
+ui <- fluidPage(theme = shinytheme("journal"),
+                
+ titlePanel(div(column(width = 5, h2("World Value Study (WVS) Dashboard")), 
+              column(width = 4, tags$img(src = 
+              "https://www.worldvaluessurvey.org/photos/EV000308.PNG", height='60',width='150'))),
+              windowTitle="World Value Study (WVS) Dashboard"
+            ),
+
 
   mainPanel(
     h2("Overview"),
@@ -24,9 +192,13 @@ ui <- fluidPage(
        Please select a Country"),
   ),
   
-  selectInput("country",
-              label = "Country",
-              choices = country_names),
+  selectizeInput("country", 
+                 label = "Please select a Country", choices = country_names,
+    options = list(
+      placeholder = 'Select a Country',
+      onInitialize = I('function() { this.setValue(""); }')
+    )
+  ),
   
   h2("Exploring attitudes to democracy"),
   p("Anger at political elites, economic dissatisfaction and anxiety 
@@ -39,55 +211,19 @@ ui <- fluidPage(
       of democracy. The data of the WVS can also provide an insight into the 
       perception of democracy in the different countries. "),
   
+  varSelectInput("democracy", "Please select a topic", 
+                 data[pol_choices], 
+                 width = '400px'
+                 ),
+
   sidebarPanel(
     tableOutput("staticpol1"),
   ),
+  
   mainPanel(
     plotOutput("plotpol1")
   ),
-  sidebarPanel(
-    tableOutput("staticpol2"),
-  ),
-  mainPanel(
-    plotOutput("plotpol2")
-  ),
-  sidebarPanel(
-    tableOutput("staticpol3"),
-  ),
-  mainPanel(
-    plotOutput("plotpol3")
-  ),
-  sidebarPanel(
-    tableOutput("staticpol4"),
-  ),
-  mainPanel(
-    plotOutput("plotpol4")
-  ),
-  sidebarPanel(
-    tableOutput("staticpol5"),
-  ),
-  mainPanel(
-    plotOutput("plotpol5")
-  ),
-  sidebarPanel(
-    tableOutput("staticpol6"),
-  ),
-  mainPanel(
-    plotOutput("plotpol6")
-  ),
-  sidebarPanel(
-    tableOutput("staticpol7"),
-  ),
-  mainPanel(
-    plotOutput("plotpol7")
-  ),
-  sidebarPanel(
-    tableOutput("staticpol8"),
-  ),
-  mainPanel(
-    plotOutput("plotpol8")
-  ),
-  
+
   h2("Exploring news consumption"),
   p("Up until very recently, print newspapers dominated 
     the journalism industry. This was before the rise of digital 
@@ -97,54 +233,17 @@ ui <- fluidPage(
     and engage with a transnational network. The goal for this piece 
     is to explore how this changing landscape has affected trends in news consumption,"),
   
+  varSelectInput("news", "Please select a news source", 
+               data[news_choices], 
+               width = '400px'
+  ),
+
   sidebarPanel(
-    tableOutput("static1"),
+    tableOutput("staticnew1"),
   ),
+
   mainPanel(
-    plotOutput("plot1")
-  ),
-  sidebarPanel(
-    tableOutput("static2")
-  ),
-  mainPanel(
-    plotOutput("plot2")
-  ),
-  sidebarPanel(
-    tableOutput("static3")
-  ),
-  mainPanel(
-    plotOutput("plot3") 
-  ),
-  sidebarPanel(
-    tableOutput("static4")
-  ),
-  mainPanel(
-    plotOutput("plot4") 
-  ),
-  
-  sidebarPanel(
-    tableOutput("static5"),
-  ),
-  mainPanel(
-    plotOutput("plot5")
-  ),
-  sidebarPanel(
-    tableOutput("static6")
-  ),
-  mainPanel(
-    plotOutput("plot6")
-  ),
-  sidebarPanel(
-    tableOutput("static7")
-  ),
-  mainPanel(
-    plotOutput("plot7") 
-  ),
-  sidebarPanel(
-    tableOutput("static8")
-  ),
-  mainPanel(
-    plotOutput("plot8") 
+    plotOutput("plotnew1")
   ),
   
   h2("Exploring attitudes to science"),
@@ -157,43 +256,18 @@ ui <- fluidPage(
      reject and dismiss scientific evidence. The goal for this piece 
      is to explore how this changing landscape has affected the attitude to science,"),
   
-  sidebarPanel(
-    tableOutput("staticsci1"),
+  varSelectInput("science", "Please select a statement", 
+                 data[science_choices], 
+                 width = '600px'
   ),
-  mainPanel(
-    plotOutput("plotsci1")
-  ),
-  sidebarPanel(
-    tableOutput("staticsci2"),
-  ),
-  mainPanel(
-    plotOutput("plotsci2")
-  ),
-  sidebarPanel(
-    tableOutput("staticsci3"),
-  ),
-  mainPanel(
-    plotOutput("plotsci3")
-  ),
-  sidebarPanel(
-    tableOutput("staticsci4"),
-  ),
-  mainPanel(
-    plotOutput("plotsci4")
-  ),
-  sidebarPanel(
-    tableOutput("staticsci5"),
-  ),
-  mainPanel(
-    plotOutput("plotsci5")
-  ),
-  sidebarPanel(
-    tableOutput("staticsci6"),
-  ),
-  mainPanel(
-    plotOutput("plotsci6")
-  )
   
+  sidebarPanel(
+    tableOutput("staticscience1"),
+  ),
+  
+  mainPanel(
+    plotOutput("plotscience1")
+  )
 )
 
 server <- function(input, output, session) {
@@ -201,7 +275,7 @@ server <- function(input, output, session) {
   # Exploring Democracy Data
   
   filtered_data_pol <- reactive({ 
-    get_table_filter(var = V228A, filter = input$country)
+    get_table_filter(var = !!input$democracy, filter = input$country)
   })
   
   output$staticpol1 <- renderTable(
@@ -209,378 +283,54 @@ server <- function(input, output, session) {
   
   output$plotpol1 <- renderPlot({
     input$newplot
-    data_complete <- rbind(get_table_overall(var = V228A), 
-                           get_table_filter(var = V228A, 
+    data_complete <- rbind(get_table_overall(var = !!input$democracy), 
+                           get_table_filter(var = !!input$democracy, 
                                             filter = input$country))
-    get_plot(var = V228A, 
+    get_plot(var = !!input$democracy, 
              data = data_complete, 
-             title = label_V228A)
+             title = paste0("How often in ", input$country,  " elections: ", 
+                            names(filtered_data_pol()[1])))
   })
-  
-  filtered_data_pol2 <- reactive({ 
-    get_table_filter(var = V228B, filter = input$country)
-  })
-  
-  output$staticpol2 <- renderTable(
-    filtered_data_pol2()[1:3])
-  
-  output$plotpol2 <- renderPlot({
-    input$newplot
-    data_complete <- rbind(get_table_overall(var = V228B), 
-                           get_table_filter(var = V228B, 
-                                            filter = input$country))
-    get_plot(var = V228B, 
-             data = data_complete, 
-             title = label_V228B)
-  })
-  
-  filtered_data_pol3 <- reactive({ 
-    get_table_filter(var = V228C, filter = input$country)
-  })
-  
-  output$staticpol3 <- renderTable(
-    filtered_data_pol3()[1:3])
-  
-  output$plotpol3 <- renderPlot({
-    input$newplot
-    data_complete <- rbind(get_table_overall(var = V228C), 
-                           get_table_filter(var = V228C, 
-                                            filter = input$country))
-    get_plot(var = V228C, 
-             data = data_complete, 
-             title = label_V228C)
-  })
-  
-  filtered_data_pol4 <- reactive({ 
-    get_table_filter(var = V228D, filter = input$country)
-  })
-  
-  output$staticpol4 <- renderTable(
-    filtered_data_pol4()[1:3])
-  
-  output$plotpol4 <- renderPlot({
-    input$newplot
-    data_complete <- rbind(get_table_overall(var = V228D), 
-                           get_table_filter(var = V228D, 
-                                            filter = input$country))
-    get_plot(var = V228D, 
-             data = data_complete, 
-             title = label_V228D)
-  })
-  
-  filtered_data_pol5 <- reactive({ 
-    get_table_filter(var = V228E, filter = input$country)
-  })
-  
-  output$staticpol5 <- renderTable(
-    filtered_data_pol5()[1:3])
-  
-  output$plotpol5 <- renderPlot({
-    input$newplot
-    data_complete <- rbind(get_table_overall(var = V228E), 
-                           get_table_filter(var = V228E, 
-                                            filter = input$country))
-    get_plot(var = V228E, 
-             data = data_complete, 
-             title = label_V228E)
-  })
-  
-  filtered_data_pol6 <- reactive({ 
-    get_table_filter(var = V228F, filter = input$country)
-  })
-  
-  output$staticpol6 <- renderTable(
-    filtered_data_pol6()[1:3])
-  
-  output$plotpol6 <- renderPlot({
-    input$newplot
-    data_complete <- rbind(get_table_overall(var = V228F), 
-                           get_table_filter(var = V228F, 
-                                            filter = input$country))
-    get_plot(var = V228F, 
-             data = data_complete, 
-             title = label_V228F)
-  })
-  
-  filtered_data_pol7 <- reactive({ 
-    get_table_filter(var = V228G, filter = input$country)
-  })
-  
-  output$staticpol7 <- renderTable(
-    filtered_data_pol7()[1:3])
-  
-  output$plotpol7 <- renderPlot({
-    input$newplot
-    data_complete <- rbind(get_table_overall(var = V228G), 
-                           get_table_filter(var = V228G, 
-                                            filter = input$country))
-    get_plot(var = V228G, 
-             data = data_complete, 
-             title = label_V228G)
-  })
-  
-  filtered_data_pol8 <- reactive({ 
-    get_table_filter(var = V228H, filter = input$country)
-  })
-  
-  output$staticpol8 <- renderTable(
-    filtered_data_pol8()[1:3])
-  
-  output$plotpol8 <- renderPlot({
-    input$newplot
-    data_complete <- rbind(get_table_overall(var = V228H), 
-                           get_table_filter(var = V228H, 
-                                            filter = input$country))
-    get_plot(var = V228H, 
-             data = data_complete, 
-             title = label_V228H)
-  })
-  
-  
-  
   
   # Exploring News Data
-  filtered_data <- reactive({ 
-    get_table_filter(var = V217, filter = input$country)
+  
+  filtered_data_new <- reactive({ 
+    get_table_filter(var = !!input$news, filter = input$country)
   })
   
-  output$static1 <- renderTable(
-    filtered_data()[1:3])
+  output$staticnew1 <- renderTable(
+    filtered_data_new()[1:3])
   
-  output$plot1 <- renderPlot({
+  output$plotnew1 <- renderPlot({
     input$newplot
-    data_complete <- rbind(get_table_overall(var = V217), 
-                       get_table_filter(var = V217, 
-                                        filter = input$country))
-    get_plot(var = V217, 
-             data = data_complete, 
-             title = label_V217)
-  })
-  
-  filtered_data2 <- reactive({
-    get_table_filter(var = V218, filter = input$country)
-  })
-  
-  output$static2 <- renderTable(
-    filtered_data2()[1:3])
-  
-  output$plot2 <- renderPlot({
-    input$newplot
-    data_complete <- rbind(get_table_overall(var = V218), 
-                       get_table_filter(var = V218, 
-                                        filter = input$country))
-    get_plot(var = V218, 
-             data = data_complete, 
-             title = label_v218)
-  })
-  
-  filtered_data3 <- reactive({
-    get_table_filter(var = V219, filter = input$country)
-  })
-  
-  output$static3 <- renderTable(
-    filtered_data3()[1:3])
-  
-  output$plot3 <- renderPlot({
-    input$newplot
-    data_complete <- rbind(get_table_overall(var = V219), 
-                       get_table_filter(var = V219, 
-                                        filter = input$country))
-    get_plot(var = V219, 
-             data = data_complete, 
-             title = label_v219)
-  })
-  
-  filtered_data4 <- reactive({
-    get_table_filter(var = V220, filter = input$country)
-  })
-  
-  output$static4 <- renderTable(
-    filtered_data4()[1:3])
-  
-  output$plot4 <- renderPlot({
-    input$newplot
-    data_complete <- rbind(get_table_overall(var = V220), 
-                       get_table_filter(var = V220, 
-                                        filter = input$country))
-    get_plot(var = V220, 
-             data = data_complete, 
-             title = label_v220)
-  })
-  
-  filtered_data5 <- reactive({
-    get_table_filter(var = V221, filter = input$country)
-  })
-  
-  output$static5 <- renderTable(
-    filtered_data5()[1:3])
-  
-  output$plot5 <- renderPlot({
-    input$newplot
-    data_complete <- rbind(get_table_overall(var = V221), 
-                           get_table_filter(var = V221, 
+    data_complete <- rbind(get_table_overall(var = !!input$news), 
+                           get_table_filter(var = !!input$news, 
                                             filter = input$country))
-    get_plot(var = V221, 
+    get_plot(var = !!input$news, 
              data = data_complete, 
-             title = label_v221)
+             title = paste0("Information source in ", input$country, ": ",
+                            names(filtered_data_new()[1])))
   })
   
-  filtered_data6 <- reactive({
-    get_table_filter(var = V222, filter = input$country)
+  # Exploring Science Data
+  
+  filtered_data_science <- reactive({ 
+    get_table_filter(var = !!input$science, filter = input$country)
   })
   
-  output$static6 <- renderTable(
-    filtered_data6()[1:3])
+  output$staticscience1 <- renderTable(
+    filtered_data_science()[1:3])
   
-  output$plot6 <- renderPlot({
+  output$plotscience1 <- renderPlot({
     input$newplot
-    data_complete <- rbind(get_table_overall(var = V222), 
-                           get_table_filter(var = V222, 
+    data_complete <- rbind(get_table_overall(var = !!input$science), 
+                           get_table_filter(var = !!input$science, 
                                             filter = input$country))
-    get_plot(var = V222, 
+    get_plot(var = !!input$science, 
              data = data_complete, 
-             title = label_v222)
+             title = names(filtered_data_science()[1]))
   })
-  
-  filtered_data7 <- reactive({
-    get_table_filter(var = V223, filter = input$country)
-  })
-  
-  output$static7 <- renderTable(
-    filtered_data7()[1:3])
-  
-  output$plot7 <- renderPlot({
-    input$newplot
-    data_complete <- rbind(get_table_overall(var = V223), 
-                           get_table_filter(var = V223, 
-                                            filter = input$country))
-    get_plot(var = V223, 
-             data = data_complete, 
-             title = label_v223)
-  })
-  
-  filtered_data8 <- reactive({
-    get_table_filter(var = V224, filter = input$country)
-  })
-  
-  output$static8 <- renderTable(
-    filtered_data8()[1:3])
-  
-  output$plot8 <- renderPlot({
-    input$newplot
-    data_complete <- rbind(get_table_overall(var = V224), 
-                           get_table_filter(var = V224, 
-                                            filter = input$country))
-    get_plot(var = V224, 
-             data = data_complete, 
-             title = label_v224)
-  })
-  
-  # Exploring Attitudes towards Science
-  
-  filtered_data_sci <- reactive({ 
-    get_table_filter(var = V192, filter = input$country)
-  })
-  
-  output$staticsci1 <- renderTable(
-    filtered_data_sci()[1:3])
-  
-  output$plotsci1 <- renderPlot({
-    input$newplot
-    data_complete <- rbind(get_table_overall(var = V192), 
-                           get_table_filter(var = V192, 
-                                            filter = input$country))
-    get_plot(var = V192, 
-             data = data_complete, 
-             title = label_v192)
-  })
-  
-  filtered_data_sci2 <- reactive({ 
-    get_table_filter(var = V193, filter = input$country)
-  })
-  
-  output$staticsci2 <- renderTable(
-    filtered_data_sci2()[1:3])
-  
-  output$plotsci2 <- renderPlot({
-    input$newplot
-    data_complete <- rbind(get_table_overall(var = V193), 
-                           get_table_filter(var = V193, 
-                                            filter = input$country))
-    get_plot(var = V193, 
-             data = data_complete, 
-             title = label_v193)
-  })
-  
-  filtered_data_sci3 <- reactive({ 
-    get_table_filter(var = V194, filter = input$country)
-  })
-  
-  output$staticsci3 <- renderTable(
-    filtered_data_sci3()[1:3])
-  
-  output$plotsci3 <- renderPlot({
-    input$newplot
-    data_complete <- rbind(get_table_overall(var = V194), 
-                           get_table_filter(var = V194, 
-                                            filter = input$country))
-    get_plot(var = V194, 
-             data = data_complete, 
-             title = label_v194)
-  })
-  
-  filtered_data_sci4 <- reactive({ 
-    get_table_filter(var = V195, filter = input$country)
-  })
-  
-  output$staticsci4 <- renderTable(
-    filtered_data_sci4()[1:3])
-  
-  output$plotsci4 <- renderPlot({
-    input$newplot
-    data_complete <- rbind(get_table_overall(var = V195), 
-                           get_table_filter(var = V195, 
-                                            filter = input$country))
-    get_plot(var = V195, 
-             data = data_complete, 
-             title = label_v195)
-  })
-  
-  filtered_data_sci5 <- reactive({ 
-    get_table_filter(var = V196, filter = input$country)
-  })
-  
-  output$staticsci5 <- renderTable(
-    filtered_data_sci5()[1:3])
-  
-  output$plotsci5 <- renderPlot({
-    input$newplot
-    data_complete <- rbind(get_table_overall(var = V196), 
-                           get_table_filter(var = V196, 
-                                            filter = input$country))
-    get_plot(var = V196, 
-             data = data_complete, 
-             title = label_v196)
-  })
-  
-  filtered_data_sci6 <- reactive({ 
-    get_table_filter(var = V197, filter = input$country)
-  })
-  
-  output$staticsci6 <- renderTable(
-    filtered_data_sci6()[1:3])
-  
-  output$plotsci6 <- renderPlot({
-    input$newplot
-    data_complete <- rbind(get_table_overall(var = V197), 
-                           get_table_filter(var = V197, 
-                                            filter = input$country))
-    get_plot(var = V197, 
-             data = data_complete, 
-             title = label_v197)
-  })
-  
-  
 }
 
 shinyApp(ui, server)
+deployApp("/Dashboard.R")
