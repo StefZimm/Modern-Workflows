@@ -20,7 +20,8 @@ loadpackage <- function(x){
 
 # load packages
 loadpackage( c("tidyverse", "dplyr", "tidyr", "foreign", "shiny", "shinythemes",
-               "summarytools", "janitor", "formattable", "data.table", "rsconnect"))
+               "summarytools", "janitor", "formattable", "data.table", "rsconnect", 
+               "shinydashboard", "plotly"))
 
 
 # set up rsconnect to shinyapp.to
@@ -107,6 +108,19 @@ get_table_overall <- function(var) {
   return(data_all)
 }
 
+
+get_table_complete <- function(var) { 
+  data_complete <- data %>%
+    drop_na({{ var }})  %>% 
+    count(V2, {{ var }}) %>% 
+    group_by(V2) %>% 
+    mutate(sum = sum(n)) %>% 
+    mutate(Percent = round(prop.table(n)*100,2))  %>% 
+    mutate(Percent = paste0(Percent, " %"))
+  return(data_complete)
+}
+
+
 # get proportion table by country
 get_table_filter <- function(var, filter) { 
   filter_data <-  data %>% 
@@ -118,6 +132,7 @@ get_table_filter <- function(var, filter) {
   
   return(filter_data)
 }
+
 
 # create barplot
 get_plot <- function(var, data, title) { 
