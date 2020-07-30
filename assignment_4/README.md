@@ -18,7 +18,8 @@ The R-Script unzips and prepares the datasets. The Dashboard.R builds the shiny 
 1. Create the folder environment explained in "Organization of the project" 
 or clone the git repo using git with the command:
     - git clone https://github.com/StefZimm/Modern-Workflows.git
-2. Go to "assignment_4/scripts subfolder".
-3. Open the PREP.r, set your working directory and start the script.
-4. Open the Dashboard.r and start the script to create the app.
+2. Download the zipped SPSS Data from [WVS (World Value Study data)](http://www.worldvaluessurvey.org/WVSDocumentationWV6.jsp) and save it in assignment_4/input/raw
+3. Go to "assignment_4/scripts subfolder".
+4. Open the PREP.r, set your working directory and start the script.
+5. Open the Dashboard.r and start the script to create the app.
 
