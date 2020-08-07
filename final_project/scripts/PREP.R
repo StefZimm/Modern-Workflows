@@ -25,7 +25,7 @@ loadpackage <- function(x){
 loadpackage( c("tidyverse", "dplyr", "tidyr", "foreign", "shiny", "shinythemes",
                "summarytools", "janitor", "formattable", "data.table", 
                "shinydashboard", "plotly", "ngram", "SentimentAnalysis", 
-               "SnowballC"))
+               "SnowballC", "broom"))
 
 # define Variables
 variables <- c("id_cocas", "year", "age", "age_r", "age_r2",
@@ -39,7 +39,7 @@ label_v225 <- "Sex"
 label_v243_r <- "Education"
 
 choices <- c(label_v72, label_v80)
-controls <- c(controls, "Sex Education")
+controls <- c(label_v225, label_v243_r, "Sex and Education")
 
 # Data Prep
 files <- list.files(datapath)
@@ -72,7 +72,6 @@ data2 <- suppressWarnings(get_EVS_data(datapath = paste0(outDir, "\\", "ZA7500_v
 
 # clean Data
 data$age <- data2$age 
-data$age_square <- (data$age)^2 
 levels(data$v243_EISCED)[levels(data$v243_EISCED)=="other"] <- NA 
 levels(data$v243_r)[levels(data$v243_r)=="other"] <- NA
 
@@ -82,20 +81,35 @@ country_names <- sort(country_names)
 setnames(data, variables[8:9], c(label_v72, label_v80))
 setnames(data, variables[c(10,13)], c(label_v225, label_v243_r))
 
+setnames(data2, variables[8:9], c(label_v72, label_v80))
+setnames(data2, variables[c(10,13)], c(label_v225, label_v243_r))
+data2$country <- data$country
+
+# filter data set
+get_filter_data <- function(data, nadrop, filter) { 
+  filter_data <-  data %>% 
+    filter(country == filter) %>%
+    drop_na({{ nadrop }}) %>%
+    drop_na(Sex) %>%
+    drop_na(Education) %>%
+    drop_na(age) 
+  return(filter_data)
+}
+
 # get regression formula
 get_formula <- function(outcome, control, poly) {
 
   
-  if (control=="Sex Education"){
-    control <- paste0(gsub(' ', " + ", control), " + ")
-    paste0(outcome, " ~ ", control, "poly(age,", poly, ")")
+  if (control=="Sex and Education"){
+    control <- paste0(gsub(' and ', " + ", control), " + ")
+    paste0("`", outcome, "`", " ~ ", control, "poly(age,", poly, ")")
     
   } else {
     if ((grepl("([A-Z])", control))==TRUE){
-      paste0(outcome, " ~ ", paste0(control, " + "), "poly(age,", poly, ")")
+      paste0("`", outcome, "`", " ~ ", paste0(control, " + "), "poly(age,", poly, ")")
     } 
     else{
-    paste0(outcome, " ~ ", gsub(' + ', "", control), "poly(age,", poly, ")")
+    paste0("`", outcome, "`", " ~ ", gsub(' + ', "", control), "poly(age,", poly, ")")
   }
   }
 }
@@ -120,4 +134,45 @@ get_plot <- function(var, data, title) {
           axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5))+
     facet_grid(Sex~Education)
 }
+
+get_filter_data <- function(filter, var) { 
+  filter_data <-  data %>% 
+    filter(country == filter & !is.na(age) & !is.na(Sex) &
+           !is.na({{ var }}) &
+           !is.na(Education))  
+  
+  return(filter_data)
+}
+
+set.seed(100)
+regdata <- data2 %>%
+  filter(!is.na(age) & !is.na(Sex) & 
+           !is.na(`Job should be given to a national`) &
+           !is.na(Education) & (country == "Germany"))
+
+#regdata <- sample_n(regdata, 1000)
+
+#regdata$`Job should be given to a national` <- 
+#  as.numeric(regdata$`Job should be given to a national`)
+
+#regdata$Sex <- as.numeric(regdata$Sex)
+#regdata$Education <- as.numeric(regdata$Education)
+ 
+result <- lm(paste0("`Job should be given to a national` ~ Education + poly(age,3)"), 
+    data = regdata)
+
+regression <- broom::tidy(result)
+
+model.diag.metrics <- augment(result)
+head(model.diag.metrics)
+
+
+regdata$predicted <- predict(result)   # Save the predicted values
+regdata$residuals <- residuals(result)
+
+regdata %>% 
+  select(`Job should be given to a national`, predicted, residuals) %>% 
+  head()
+
+plot(result, which=1, col=c("blue")) # Residuals vs Fitted Plot
 

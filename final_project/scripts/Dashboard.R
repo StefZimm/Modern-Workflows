@@ -35,16 +35,7 @@ ui <-   dashboardPage(
                       ),
                       varSelectInput("Outcome", "Please select an Outcome", 
                                      data[choices]
-                      ),
-                      selectizeInput("Controls", 
-                                     label = "Select Control Variables", choices = controls,
-                                     options = list(
-                                       placeholder = 'Select Control Variables',
-                                       onInitialize = I('function() { this.setValue(""); }')
-                                     )
-                      ),
-                      numericInput("pol", "Age polynomial:", 1, min = 1, max = 5),
-                      verbatimTextOutput("func")
+                      )
               )
       ),
       
@@ -58,7 +49,18 @@ ui <-   dashboardPage(
       # Thirs tab content
       tabItem(tabName = "Regression",
               h2("Regression"),
-              p("Test Text C")
+              p("Test Text C"),
+              selectizeInput("Controls", 
+                             label = "Select Control Variables", choices = controls,
+                             options = list(
+                               placeholder = 'Select Control Variables',
+                               onInitialize = I('function() { this.setValue(""); }')
+                             )
+              ),
+              numericInput("pol", "Age polynomial:", 1, min = 1, max = 5),
+              verbatimTextOutput("func"),
+              tableOutput("reg"),
+              plotOutput("regplot")
       )
     )
   )
@@ -66,8 +68,24 @@ ui <-   dashboardPage(
 
 server <- function(input, output, session) {
   
+  # Filter Data
+  filtered_data <- reactive({ 
+    get_filter_data(data = data, filter = input$country, 
+                    nadrop = input$Outcome)
+  })
+  
+  filtered_data_num <- reactive({ 
+    get_filter_data(data = data2, filter = input$country, 
+                    nadrop = input$Outcome)
+  })
+  
+  # control Table
+  output$staticpol1 <- renderTable(
+    filtered_data_num())
+  
+  # creae regression formula  
   formula <- reactive({
-    
+  
   get_formula(outcome = input$Outcome, 
               control = input$Controls, 
               poly = input$pol)
@@ -75,9 +93,24 @@ server <- function(input, output, session) {
   
   output$func <- renderText(formula())
   
+  # create regression table
+  result <- reactive({ 
+    lm(get_formula(outcome = input$Outcome, 
+                   control = input$Controls, 
+                   poly = input$pol), 
+                   data = filtered_data_num())
+  })
+  
+  output$reg <- renderTable(broom::tidy(result()))
+  
+  output$regplot <- renderPlot({
+    plot(result(), which=1, col=c("blue")) 
+  })
+    
+  # create Plot
   output$plot <- renderPlot({
         get_plot(var = !!input$Outcome, 
-                 data = data,
+                 data = filtered_data(),
                  title = paste0(names(data[as.character(input$Outcome)])))
   })
 }
