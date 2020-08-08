@@ -1,0 +1,90 @@
+---
+title: "Dynamic Report EVS"
+output: html_document
+params:
+  n: NA
+  country: NA
+  poly: NA
+  outcome: NA
+  controls: NA
+---
+
+## Report on `r params$country`
+
+# Overview
+Welcome to the European Values Study Dashboard. This app allows you to explore the EVS dataset, 
+learn more about it and take a look at some small analyses. Select the country you are interested 
+in. Then select a variable/outcome that interests you. On the left side you will find the Exploration 
+and Regression section. Under Exploration you can view first descriptive results for the selected country. 
+In the Regression area, a linear regression model is calculated for your selected outcome.
+
+# Exploration
+The exploration area shows you three graphs. To get an idea of the data set, a histogram 
+of the age distribution is displayed. The blue line indicates the mean value of age. In the 
+second chart, the educational level by gender in the selected country is shown in a bar chart. 
+Finally, the last figure is also a bar chart which describes a possible correlation between 
+gender, age, educational level and the selected outcome.
+
+
+```{r, echo=FALSE}
+
+    filtered_data <- get_filter_data(data = data, filter = params$country, 
+                      nadrop = params$outcome)
+
+  filtered_data_num <- get_filter_data(data = data2, filter = params$country, 
+                    nadrop = params$outcome)
+``` 
+
+
+```{r, echo=FALSE}
+ # create Plots
+          hist <- get_histogram(data = filtered_data,
+                    title = paste0("Age Distribution in ", params$country))
+          hist
+
+    bar <- ggplot(filtered_data, aes(x = Sex, fill = Education))+
+        geom_bar(position = 'fill')+
+        scale_y_continuous(labels = scales::percent)+
+        labs(title = paste0("Education Level by Sex in ", params$country),
+             y = "Proportion")
+    
+    bar
+    
+    plot <- get_plot(var = !!params$outcome, 
+               data = filtered_data,
+               title = paste0(names(data[as.character(params$outcome)])))
+    
+    plot
+```
+
+  
+```{r, echo=FALSE}
+# create regression table
+  result <-   lm(get_formula(outcome = params$outcome, 
+                   control = params$controls, 
+                   poly = params$poly), 
+                   data = filtered_data_num)
+```
+
+# Regression
+
+The regression area allows you to add additional control variables. For example, gender 
+and educational level can be added. The age variable can also be modified. Once the parameters 
+are set, the formula used to calculate the regression is displayed. The coefficients of the 
+regression are displayed and the predicted values can be evaluated with the residual plot.
+  
+```{r, echo=FALSE}
+  
+    formula <- get_formula(outcome = params$outcome, 
+                  control = params$controls, 
+                  poly = params$poly)
+    
+    formula
+    
+    broom::tidy(result)
+  
+    plot(result, which=1, col=c("blue")) 
+  
+```
+
+

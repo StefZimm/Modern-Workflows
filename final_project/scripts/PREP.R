@@ -4,9 +4,10 @@
 # Repo-Script path
 datapath <- "C:\\clone\\Modern Workflows\\final_project\\input\\raw"
 outDir   <- "C:\\clone\\Modern Workflows\\final_project\\input\\unzip"
-output <- "C:\\clone\\Modern Workflows\\final_project\\output\\"
+output <- "C:\\clone\\Modern Workflows\\final_project\\output"
 scripts <- "C:\\clone\\Modern Workflows\\final_project\\scripts\\"
 
+tempReport <- file.path("C:/clone/Modern Workflows/final_project/output", "report.Rmd")
 
 # install and load packages
 loadpackage <- function(x){
@@ -135,44 +136,27 @@ get_plot <- function(var, data, title) {
     facet_grid(Sex~Education)
 }
 
-get_filter_data <- function(filter, var) { 
-  filter_data <-  data %>% 
-    filter(country == filter & !is.na(age) & !is.na(Sex) &
-           !is.na({{ var }}) &
-           !is.na(Education))  
+get_histogram <- function(data, title) { 
   
-  return(filter_data)
+ggplot(data, aes(x=age)) + 
+  scale_x_continuous(limits = c(0,100), 
+                     breaks = seq(0,100, by=10))+
+  geom_histogram(aes(y = ..count..), 
+                 binwidth = 0.1, 
+                 boundary = 0.1, 
+                 closed = "left", 
+                 color="black", 
+                 fill="white")+
+  geom_vline(aes(xintercept=mean(age)),
+             color="blue", linetype="dashed", size=1)+
+  labs(title = title,
+       y = "Count")
 }
 
-set.seed(100)
-regdata <- data2 %>%
-  filter(!is.na(age) & !is.na(Sex) & 
-           !is.na(`Job should be given to a national`) &
-           !is.na(Education) & (country == "Germany"))
+# Set Themes
+theme_set(
+  theme_classic() + 
+    theme(legend.position = "top")
+)
 
-#regdata <- sample_n(regdata, 1000)
-
-#regdata$`Job should be given to a national` <- 
-#  as.numeric(regdata$`Job should be given to a national`)
-
-#regdata$Sex <- as.numeric(regdata$Sex)
-#regdata$Education <- as.numeric(regdata$Education)
- 
-result <- lm(paste0("`Job should be given to a national` ~ Education + poly(age,3)"), 
-    data = regdata)
-
-regression <- broom::tidy(result)
-
-model.diag.metrics <- augment(result)
-head(model.diag.metrics)
-
-
-regdata$predicted <- predict(result)   # Save the predicted values
-regdata$residuals <- residuals(result)
-
-regdata %>% 
-  select(`Job should be given to a national`, predicted, residuals) %>% 
-  head()
-
-plot(result, which=1, col=c("blue")) # Residuals vs Fitted Plot
 
